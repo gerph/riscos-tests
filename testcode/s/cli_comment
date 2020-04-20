@@ -1,0 +1,36 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+
+cli ROUT
+        PrintLine "Testing null commands"
+
+        MACRO
+        CLI     $str
+        PrintLine "Testing: '$str'"
+        ADR     r0, %FT10
+        SWI     OS_CLI
+        B       %FT20
+10
+        = "$str", 0
+        ALIGN
+20
+        MEND
+
+        CLI     ""
+        CLI     "*"
+        CLI     "**"
+        CLI     " "
+        CLI     " *"
+        CLI     " * "
+        CLI     "|"
+        CLI     "| stuff"
+        CLI     "*|"
+        CLI     "* |"
+        CLI     " |"
+
+        MOV     pc, lr
+
+        END

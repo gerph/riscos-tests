@@ -1,0 +1,20 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+
+hello_world     ROUT
+        ADR     r1, message
+10
+        LDRB    r0, [r1], #1
+        TEQ     r0, #0
+        SWINE   OS_WriteC
+        BNE     %BT10
+
+        SWI     OS_NewLine
+        MOV     pc, lr
+
+message
+        = "Hello world", 0
+
+        END

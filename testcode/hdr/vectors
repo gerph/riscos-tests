@@ -1,0 +1,72 @@
+ SUBT Vector numbers => &.Hdr.Vectors
+
+UserV   *       &00
+ErrorV  *       &01
+IrqV    *       &02
+WrchV   *       &03
+RdchV   *       &04                     ; --,
+CliV    *       &05                     ;   |
+ByteV   *       &06                     ;   |
+WordV   *       &07                     ;   |
+FileV   *       &08                     ;   |
+ArgsV   *       &09                     ;   } These numbers correspond
+BGetV   *       &0A                     ;   } to the SWI numbers
+BPutV   *       &0B                     ;   |
+GBPBV   *       &0C                     ;   |
+FindV   *       &0D                     ;   |
+ReadLineV *     &0E                     ; --'
+FSCV    *       &0F
+EventV  *       &10
+UPTV    *       &11
+NETV    *       &12
+KEYV    *       &13
+INSV    *       &14
+REMV    *       &15
+CNPV    *       &16                     ; Count/Purge Buffer V
+UKVDU23V *      &17                     ; VDU23 (decimal)
+UKSWIV  *       &18                     ; Unknown SWI numbers
+UKPLOTV *       &19                     ; VDU25 (decimal)
+MouseV  *       &1A                     ; The mouse SWI vectors along here
+VDUXV   *       &1B                     ; The kernel calls this vector instead of
+                                        ; the VDU if bit 5 of wrch destination set
+TickerV *       &1C                     ; 100Hz pacemaker
+UpCallV *       &1D                     ; The 'can you deal with this before I go bang' vector.
+ChangeEnvironmentV * &1E                ; vectors along here when changing any handlers,
+                                        ; so debuggers etc. can stop it getting through.
+SpriteV *       &1F                     ; called by SWI SpriteOp
+DrawV   *       &20                     ; polygon fill vector for printers
+EconetV *       &21                     ; Vector for NetFS/Econet progress reporting
+ColourV *       &22                     ; for the ColourTrans module
+PaletteV *      &23                     ; palette changed indication
+SerialV *       &24                     ; indirection of SerialOps from kernel to Serial device drivers.
+FontV   *       &25                     ; indirection of Font Manager calls prior
+                                        ; to processing by Font Manager.
+PointerV *      &26                     ; for mouse drivers
+TimeShareV *     &27                    ; SkyNet TimeShare
+
+LPEventV     *  &28                     ; for system event messages (eg, mail notification, etc)
+FastTickerV  *  &29                     ; faster variant of TickerV
+SpareVector6 *  &2A
+SpareVector5 *  &2B
+VideoV       *  &2C                     ; Video abstraction vector (RISC OS 4.42+ only)
+SpareVector3 *  &2D
+SpareVector2 *  &2E
+SpareVector1 *  &2F
+
+; Vectors &30-&3F are intended to be used for things that are dedicated
+; to modern versions of the operating system so that we don't waste the
+; limited number of vectors that we have left that might be globally
+; useful. Alan, however, feels otherwise. So we end up with a generally
+; usable vector (Vector &2C - VideoV) wasted on things that won't ever
+; be available on earlier systems. <sigh>
+
+; JRF: (04 Jun 2002) Vectors increased to &40 from &30
+NVECTORS *      &40                     ; There are this many vectors, 0..NVECTORS-1
+OLDNVECTORS *   &30                     ; This is how many vectors there WERE, so that we can allocate them more sensibly elsewhere
+
+; Our vectors - used for non-legacy supporting features - are in the &30-&3F
+; range. These are mostly for things taken out of the Kernel.
+RTCV         *  &3F                     ; Real Time Clock
+NVRAMV       *  &3E                     ; NVRAM
+
+        END

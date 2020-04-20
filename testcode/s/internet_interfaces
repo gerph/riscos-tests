@@ -1,0 +1,299 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+        GET     hdr.macros
+
+AF_INET     * 2
+AF_LINK     * 18
+AF_INET6    * 28
+SOCK_STREAM * 1    ; stream socket */
+SOCK_DGRAM  * 2    ; datagram socket */
+IPPROTO_IP  * 0    ; dummy for IP
+IPPROTO_TCP * 6    ; tcp
+IPPROTO_UDP * 17   ; user datagram protocol
+IOCTL_SIOCOGIFCONF * 0xc0086914
+IOCTL_SIOCGIFCONF * 0xc0086960
+
+internet_interfaces ROUT
+        MOV     r8, #0
+        LDRB    r0, [r1], #1
+        TEQ     r0, #'n'
+        TEQNE   r0, #'o'
+        MOVEQ   r8, r0
+        BNE     %FT90
+
+        B       show_interfaces
+90
+        PrintLine "Syntax: internet_interfaces n|o"
+        MOV     pc, lr
+
+
+; => R8 = 'n' or 'o' for new or old interfaces
+show_interfaces SIGNATURE
+        Push    "lr"
+        PrintLine "Create socket"
+        MOV     r0, #AF_INET
+        MOV     r1, #SOCK_STREAM
+        MOV     r2, #IPPROTO_TCP
+        SWI     Socket_Creat
+        MOV     r7, r0
+        PrintMessage "Socket created: "
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        PrintLine "Read interface configuration"
+        MOV     r0, r7
+        TEQ     r8, #'n'
+        LDREQ   r1, =IOCTL_SIOCGIFCONF
+        LDRNE   r1, =IOCTL_SIOCOGIFCONF
+        LDR     r2, =?gifconf_buffer
+        ADRL    r3, gifconf_buffer
+        Push    "r2, r3"
+        MOV     r2, sp
+        SWI     Socket_Ioctl
+        Pull    "r2, r3"
+
+        PrintMessage "Configuration size: "
+        PrintInteger r2
+        SWI     OS_NewLine
+        SWI     OS_NewLine
+
+; r3 -> buffer
+; r2 = written size
+
+10
+        CMP     r2, #8
+        BLE     %FT90
+
+        PrintMessage "Interface: ", 14
+        PrintString r3
+        SWI     OS_NewLine
+        ADD     r1, r3, #16
+
+        BL      show_sockaddr
+        ADD     r3, r1, r0
+        SUB     r2, r2, r0
+        SUB     r2, r2, #16
+
+        ; Marker ending an interface
+        SWI     OS_WriteI + "-"
+        SWI     OS_NewLine
+
+        B       %BT10
+
+90
+        PrintLine "Done"
+        Pull    "pc"
+
+
+show_sockaddr SIGNATURE
+; display a sockaddr structure
+; => r1 -> sockaddr block
+; <= r0 = size of the sockaddr block
+        Push    "r1-r4, lr"
+        ;PrintMessage "Address:", 14
+        ;PrintHex r1
+        ;SWI     OS_NewLine
+
+        LDRB    r0, [r1, #1]
+        TEQ     r0, #0
+        BEQ     %FT10
+        PrintLine "Layout:       New style sockaddr"
+        LDRB    r4, [r1, #0]
+        PrintMessage "Size: ", 14
+        PrintInteger r4
+        SWI     OS_NewLine
+        B       %FT20
+
+10 ; old style
+        PrintLine "Layout:       BSD 4.3 compatible"
+        LDRB    r0, [r1, #0]
+        MOV     r4, #16
+
+20
+        PrintMessage "Family: ", 14
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        ADR     lr, %FT90
+        TEQ     r0, #AF_INET
+        BEQ     show_afinet
+        TEQ     r0, #AF_INET6
+        BEQ     show_afinet6
+        TEQ     r0, #AF_LINK
+        BEQ     show_aflink
+
+        PrintLine "              Address family not supported (in this display)"
+90
+; r0 = size used
+; r4 = size expected
+        CMP     r0, r4
+        BLE     %FT95
+        PrintMessage "Warning:      Corrupted - sockaddr is "
+        PrintInteger r4
+        PrintMessage " bytes, but "
+        PrintInteger r0
+        PrintLine " bytes are required"
+95
+        MOV     r0, r4
+        Pull    "r1-r4, pc"
+
+
+; => r1 -> sockaddr
+; <= r0 = size of data read
+show_afinet SIGNATURE
+        Push    "r1-r3, lr"
+        LDRB    r2, [r1, #2]
+        LDRB    r3, [r1, #3]
+        ORR     r0, r3, r2, LSL #8
+        PrintMessage "Port number: ", 14
+        PrintInteger r0
+        SWI     OS_NewLine
+        PrintMessage "IPv4 address: ", 14
+
+        LDRB    r0, [r1, #4]
+        PrintInteger r0
+        SWI     OS_WriteI + "."
+
+        LDRB    r0, [r1, #5]
+        PrintInteger r0
+        SWI     OS_WriteI + "."
+
+        LDRB    r0, [r1, #6]
+        PrintInteger r0
+        SWI     OS_WriteI + "."
+
+        LDRB    r0, [r1, #7]
+        PrintInteger r0
+        SWI     OS_NewLine
+
+; return the size used
+        MOV     r0, #8
+        Pull    "r1-r3, pc"
+
+
+; => r1 -> sockaddr
+; <= r0 = size of data read
+show_afinet6 SIGNATURE
+        Push    "r1-r4, lr"
+        LDRB    r2, [r1, #2]
+        LDRB    r3, [r1, #3]
+        ORR     r0, r3, r2, LSL #8
+        PrintMessage "Port number: ", 14
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        LDR     r0, [r1, #4]
+        PrintMessage "FlowInfo: ", 14
+        PrintHex r0
+        SWI     OS_NewLine
+
+        PrintMessage "IPv6 address: ", 14
+
+; print out 16 bits at a time
+        ADD     r4, r1, #8
+        MOV     r5, #16
+10
+        LDRB    r2, [r4], #1
+        LDRB    r3, [r4], #1
+        ORR     r0, r3, r2, LSL #8
+        PrintNumber r0,, OS_ConvertHex4
+
+        SUBS    r5, r5, #2
+        SWINE   OS_WriteI + ":"
+        BNE     %BT10
+
+        SWI     OS_NewLine
+
+        LDR     r0, [r1, #24]
+        PrintMessage "ScopeID: ", 14
+        PrintInteger r0
+        SWI     OS_NewLine
+
+; return the size used
+        MOV     r0, #28
+        Pull    "r1-r4, pc"
+
+
+show_aflink SIGNATURE
+        Push    "r1-r9, lr"
+        LDRB    r2, [r1, #2]
+        LDRB    r3, [r1, #3]
+        ORR     r0, r2, r3, LSL #8
+        PrintMessage "Index: ", 14
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        LDRB    r0, [r1, #4]
+        PrintMessage "HWType: ", 14
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        LDRB    r3, [r1, #5]
+        PrintMessage "NameLen: ", 14
+        PrintInteger r3
+        SWI     OS_NewLine
+
+        LDRB    r4, [r1, #6]
+        PrintMessage "AddrLen: ", 14
+        PrintInteger r4
+        SWI     OS_NewLine
+
+        LDRB    r5, [r1, #7]
+        PrintMessage "SelectorLen: ", 14
+        PrintInteger r5
+        SWI     OS_NewLine
+
+; Work out the size of the structure used
+        MOV     r8, #8
+        ADD     r8, r8, r3
+        ADD     r8, r8, r4
+        ADD     r8, r8, r5
+
+        ADD     r2, r1, #8
+; Print out the values given
+
+        PrintMessage "Name: ", 14
+        MOV     r0, r2
+        MOV     r1, r3
+        SWI     OS_WriteN
+        SWI     OS_NewLine
+        ADD     r2, r2, r3
+
+        PrintMessage "Addr: ", 14
+        TEQ     r4, #0
+        BEQ     %FT15
+10
+        LDRB    r0, [r2], #1
+        PrintNumber r0,, OS_ConvertHex2
+
+        SUBS    r4, r4, #1
+        SWINE   OS_WriteI + ":"
+        BNE     %BT10
+15
+        SWI     OS_NewLine
+
+        PrintMessage "Selector: ", 14
+        TEQ     r5, #0
+        BEQ     %FT15
+10
+        LDRB    r0, [r2], #1
+        PrintNumber r0,, OS_ConvertHex2
+
+        SUBS    r5, r5, #1
+        SWINE   OS_WriteI + ","
+        BNE     %BT10
+15
+        SWI     OS_NewLine
+
+; return the size used
+        MOV     r0, r8
+        Pull    "r1-r9, pc"
+
+        LTORG
+
+gifconf_buffer % 2048
+
+        END

@@ -1,0 +1,45 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+
+buffer_size * 32
+
+        MACRO
+$label  Convert $value
+        LDR     r0, =$value
+        BL      print1
+        MEND
+
+
+swifromnumber   ROUT
+        STMFD   sp!, {lr}
+
+        Convert OS_CLI
+        Convert OS_WriteI + 'A'
+        Convert OS_WriteI + 23
+        Convert OS_SWINumberFromString + (1<<17)
+        Convert OS_SWINumberFromString
+        Convert ADFS_DiscOp
+        Convert &4027f                  ; ADFS_63
+        Convert 0x400c0
+        Convert &600c0
+        Convert &300000
+        Convert &320000
+
+        LDMFD   sp!, {pc}
+
+print1
+        ADR     r1, buffer
+        MOV     r2, #buffer_size
+        SWI     OS_SWINumberToString
+        MOV     r0, r1
+        SWI     OS_Write0
+        SWI     OS_NewLine
+        MOV     pc, lr
+
+buffer  %       buffer_size
+
+        LTORG
+
+        END

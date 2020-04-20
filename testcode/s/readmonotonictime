@@ -1,0 +1,11 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+
+read_monotonic_time     ROUT
+        SWI     OS_ReadMonotonicTime
+; Can't really do much with it and still keep the test sane
+        MOV     pc, lr
+
+        END

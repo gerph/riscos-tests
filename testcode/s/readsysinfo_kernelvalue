@@ -1,0 +1,59 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+
+ReadSysInfoReason_KernelValue_CamEntriesPointer * 0x0
+ReadSysInfoReason_KernelValue_MaxCamEntry       * 0x1
+
+
+readsysinfo     ROUT
+
+        PrintLine "Single value request"
+
+        MOV     r0, #6
+        MOV     r1, #0
+        MOV     r2, # ReadSysInfoReason_KernelValue_CamEntriesPointer
+        SWI     OS_ReadSysInfo
+
+        PrintMessage "RSI 6,0: "
+        PrintHex r2
+        SWI     OS_NewLine
+
+
+        PrintLine "Multiple value request"
+
+        MOV     r0, #6
+        ADR     r1, multivalues
+        ADR     r2, outputs
+        SWI     OS_ReadSysInfo
+
+        LDR     r0, [r2], #4
+        PrintMessage "RSI 6,0: "
+        PrintHex r0
+        SWI     OS_NewLine
+
+        LDR     r0, [r2], #4
+        PrintMessage "RSI 6,1: "
+        PrintHex r0
+        SWI     OS_NewLine
+
+        LDR     r0, [r2], #4
+        PrintMessage "Should be &55115511: "
+        PrintHex r0
+        SWI     OS_NewLine
+
+        MOV     pc, lr
+
+multivalues
+        DCD     ReadSysInfoReason_KernelValue_CamEntriesPointer
+        DCD     ReadSysInfoReason_KernelValue_MaxCamEntry
+        DCD     -1
+
+outputs
+        DCD     &88998899
+        DCD     &22332233
+        DCD     &55115511
+
+        END

@@ -1,0 +1,58 @@
+; OS_Plot commands
+
+Plot_Line * 0                    ; Solid line including both end points
+Plot_LineExcEnd * 8              ; Solid line excluding the final point
+Plot_Dotted * 16                 ; Dotted line including both end points, pattern restarted
+Plot_DottedExcEnd * 24           ; Dotted line excluding the final point, pattern restarted
+Plot_LineExcStart * 32           ; Solid line excluding the initial point
+Plot_LineExcBoth * 40            ; Solid line excluding both end points
+Plot_DottedExcStart * 48         ; Dotted line excluding the initial point, pattern continued
+Plot_DottedExcBoth * 56          ; Dotted line excluding both end points, pattern continued
+Plot_Point * 64                  ; Point Plot
+Plot_HLineFillToNonBG * 72       ; Horizontal line fill (left and right) to non-background
+Plot_TriangleFill * 80           ; Triangle fill
+Plot_HLineFillRightToBG * 88     ; Horizontal line fill (right only) to background
+Plot_RectangleFill * 96          ; Rectangle fill
+Plot_HLineFillToFG * 104         ; Horizontal line fill (left and right) to foreground
+Plot_ParallelogramFill * 112     ; Parallelogram fill
+Plot_HLineFillRightToNonFG * 120 ; Horizontal line fill (right only) to non-foreground
+Plot_FloodToNonBG * 128          ; Flood to non-background
+Plot_FloodToFG * 136             ; Flood to foreground
+Plot_CircleOutline * 144         ; Circle outline
+Plot_CircleFill * 152            ; Circle fill
+Plot_CircleArc * 160             ; Circular arc
+Plot_CircleSegment * 168         ; Segment
+Plot_CircleSector * 176          ; Sector
+Plot_BlockCopyMove * 184         ; Block copy/move
+Plot_EllipseOutline * 192        ; Ellipse outline
+Plot_EllipseFill * 200           ; Ellipse fill
+Plot_Font * 208                  ; Font printing - see the chapter entitled The Font Manager
+Plot_Reserved216 * 216           ; Reserved for Acorn Expansion
+Plot_Reserved224 * 224           ; Reserved for Acorn Expansion
+Plot_Sprite * 232                ; Sprite Plot - see the chapter on sprites
+Plot_Reserved240 * 240           ; Reserved for User programs
+Plot_Reserved248 * 248           ; Reserved for User programs
+
+Plot_Mask * 248
+
+; Effect constants
+PlotEffect_MoveRelative * 0          ; move cursor relative (to last graphics point visited)
+PlotEffect_PlotRelativeFG * 1        ; plot relative using current foreground colour
+PlotEffect_PlotRelativeInverse * 2   ; plot relative using logical inverse colour
+PlotEffect_PlotRelativeBG * 3        ; plot relative using current background colour
+PlotEffect_MoveAbsolute * 4          ; move cursor absolute (ie move to actual coordinates given)
+PlotEffect_PlotAbsoluteFG * 5        ; plot absolute using current foreground colour
+PlotEffect_PlotAbsoluteInverse * 6   ; plot absolute using logical inverse colour
+PlotEffect_PlotAbsoluteBG * 7        ; plot absolute using current background colour
+
+; Effect Bits
+PlotEffectBit_PositionMask * 1<<2
+PlotEffectBit_PositionRelative * 0<<2
+PlotEffectBit_PositionAbsolute * 1<<2
+PlotEffectBit_PlotMask * 3<<0
+PlotEffectBit_PlotNone * 0<<0
+PlotEffectBit_PlotFG * 1<<0
+PlotEffectBit_PlotInverse * 2<<0
+PlotEffectBit_PlotBG * 3<<0
+
+        END

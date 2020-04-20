@@ -1,0 +1,179 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+
+        MACRO
+$label  TestString $string, $base, $flags, $max, $value, $len
+        STMFD   sp!, {lr}
+
+        PrintMessage "--- String: '"
+        ADR     r0, %FT80
+        SWI     OS_Write0
+        SWI     OS_WriteI + "'"
+        SWI     OS_NewLine
+
+        PrintMessage "    Base:  "
+    [ "$base" <> ""
+        MOV     r0, #$base
+    |
+        MOV     r0, #10
+    ]
+        PrintInteger r0
+        SWI     OS_NewLine
+
+    [ "$flags" <> ""
+        PrintMessage "    Flags: "
+        MOV     r14, #$flags
+        PrintHex r14
+        SWI     OS_NewLine
+    ]
+
+    [ "$max" <> ""
+        PrintMessage "    Max:   "
+        MOV     r2, #$max
+        PrintInteger r2
+        SWI     OS_NewLine
+    |
+        MOV     r2, #0
+    ]
+
+        ADR     r1, %FT80
+        MOV     r4, r1
+    [ "$flags" <> ""
+        ORR     r0, r0, #$flags
+    ]
+        SWI     XOS_ReadUnsigned
+        BVC     %FT40
+        PrintMessage "VS return: "
+        ADD     r14, r0, #4
+        PrintString r14
+        SWI     OS_NewLine
+    [ "$value" <> "error"
+        MOV     r8, #1
+        PrintLine "ERROR: Should not have returned VS"
+    ]
+        B       %FT90
+
+40
+        SUB     r5, r1, r4
+        PrintMessage "Consumed:", 12
+        PrintInteger r5
+        SWI     OS_NewLine
+
+    [ "$len" <> ""
+        LDR     r14, =$len
+        TEQ     r5, r14
+        BEQ     %FT45
+        MOV     r8, #1
+        PrintMessage "ERROR: Did not return expected length "
+        PrintInteger r14
+        SWI     OS_NewLine
+45
+    ]
+
+        LDRB    r0, [r1]
+        PrintMessage "Terminator:", 12
+        CMP     r0, #32
+        BLE     %FT50
+        SWI     OS_WriteC
+        SWI     OS_WriteI + ' '
+50
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        PrintMessage "Value:", 12
+        PrintHex r2, 10
+        PrintInteger r2
+        SWI     OS_NewLine
+
+    [ "$value" <> ""
+    [ "$value" <> "error"
+        LDR     r14, =$value
+        TEQ     r2, r14
+        BEQ     %FT55
+        MOV     r8, #1
+        PrintMessage "ERROR: Did not return expected value "
+        PrintHex r14, 10
+        PrintInteger r14
+        SWI     OS_NewLine
+55
+    |
+        PrintMessage "ERROR: Expected a VS return"
+        MOV     r8, #1
+    ]
+    ]
+
+        B       %FT90
+
+80
+        = "$string", 0
+        ALIGN
+        LTORG
+
+90
+        SWI     OS_NewLine
+        LDMFD   sp!, {lr}
+        MEND
+
+
+Flag_EndOnControl   * (1<<31)
+Flag_Limit255       * (1<<30)
+Flag_LimitR2        * (1<<29)
+
+readunsigned    ROUT
+        STMFD   sp!, {lr}
+        MOV     r8, #0
+
+; empty string
+        TestString "", 10, 0, 0, error
+; invalid bare hex specifier
+        TestString "&", 10, 0, 0, error
+; invalid bare base specifier
+        TestString "2_", 10, 0, 0, error
+; Not a number
+        TestString "bob", 10, 0, 0, error
+
+; decimal, hex, binary
+        TestString "1234", 10, 0, 0, 1234, 4
+        TestString "&1234", 10, 0, 0, &1234, 5
+        TestString "2_10101010", 10, 0, 0, &aa, 10
+
+; default to hex
+        TestString "1234", 16, 0, 0, &1234, 4
+        TestString "1234ab", 16, 0, 0, &1234ab, 6
+
+; terminated by an out of bounds digit
+        TestString "2_1012", 10, 0, 0, 5, 5
+        TestString "1234A", 10, 0, 0, 1234, 4
+
+; Limited to 0-255
+        TestString "123", 10, Flag_Limit255, 0, 123, 3
+        TestString "254", 10, Flag_Limit255, 0, 254, 3
+        TestString "255", 10, Flag_Limit255, 0, 255, 3
+        TestString "256", 10, Flag_Limit255, 0, error
+
+; Limit to value in R2
+        TestString "123", 10, Flag_LimitR2, 123, 123, 3
+        TestString "124", 10, Flag_LimitR2, 123, error
+
+; Must end on control or space terminator
+        TestString "123", 10, Flag_EndOnControl, 123, 123, 3
+        TestString "123 ", 10, Flag_EndOnControl, 123, 123, 3
+        TestString "123A", 10, Flag_EndOnControl, 123, error
+
+        PrintLine "++++++"
+        TEQ     r8, #0
+        BEQ     %FT90
+        PrintLine "FAILED at least one test"
+        B       %FT99
+
+90
+        PrintLine "Passed internal checks"
+99
+        LDMFD   sp!, {pc}
+
+        LTORG
+
+        END

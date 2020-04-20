@@ -1,0 +1,16 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+        GET     hdr.macros
+
+cli ROUT
+        PrintMessage "Run: "
+        XSWI    OS_Write0, r1
+        SWI     OS_NewLine
+        MOV     r0, r1
+        SWI     OS_CLI
+        MOV     pc, lr
+
+        END

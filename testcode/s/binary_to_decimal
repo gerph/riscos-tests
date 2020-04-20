@@ -1,0 +1,41 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+
+buffer_size * 16
+
+binary_to_decimal     ROUT
+        STMFD   sp!, {lr}
+
+        LDR     r0, =5
+        BL      print
+
+        LDR     r0, =54321
+        BL      print
+
+        LDR     r0, =-45
+        BL      print
+
+        LDR     r0, =-&85432
+        BL      print
+
+        LDMFD   sp!, {pc}
+
+print
+        ADR     r1, buffer
+        MOV     r2, #buffer_size
+        SWI     OS_BinaryToDecimal
+        MOV     r4, #0
+        STRB    r4, [r1, r2]        ; terminate string
+
+        ADR     r0, buffer
+        SWI     OS_Write0
+        SWI     OS_NewLine
+        MOV     pc, lr
+
+buffer  %       buffer_size
+
+        LTORG
+
+        END

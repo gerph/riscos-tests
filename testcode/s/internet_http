@@ -1,0 +1,206 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+
+AF_INET     * 2
+AF_INET6    * 28
+SOCK_STREAM * 1    ; stream socket */
+SOCK_DGRAM  * 2    ; datagram socket */
+IPPROTO_IP  * 0    ; dummy for IP
+IPPROTO_TCP * 6    ; tcp
+IPPROTO_UDP * 17   ; user datagram protocol
+
+port * 80
+
+
+internet_http ROUT
+        LDRB    r0, [r1], #1
+        TEQ     r0, #'4'
+        BEQ     connect_tcp4
+        TEQ     r0, #'6'
+        BEQ     connect_tcp6
+
+        PrintLine "Syntax: internet_http 4|6"
+        MOV     pc, lr
+
+; Connect to a http port using IPv4
+connect_tcp4
+        PrintLine "Creating TCP socket"
+        MOV     r0, #AF_INET
+        MOV     r1, #SOCK_STREAM
+        MOV     r2, #IPPROTO_TCP
+        SWI     Socket_Creat
+        MOV     r7, r0
+        PrintMessage "Socket created: "
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        PrintLine "Connecting"
+        MOV     r0, r7
+        ADR     r1, sockaddr
+        MOV     r2, #16
+        SWI     Socket_Connect
+
+        PrintLine "Connected"
+        B       communicate
+
+
+; Connect to a http port using IPv6
+connect_tcp6
+        PrintLine "Creating TCP socket using IPv6"
+        MOV     r0, #AF_INET6
+        MOV     r1, #SOCK_STREAM
+        MOV     r2, #IPPROTO_TCP
+        SWI     Socket_Creat
+        MOV     r7, r0
+        PrintMessage "Socket created: "
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        PrintLine "Connecting"
+        MOV     r0, r7
+        ADR     r1, sockaddr6
+        MOV     r2, #28
+        SWI     Socket_Connect
+
+        PrintLine "Connected"
+        B       communicate
+
+
+; Do the actual request
+communicate
+; send our HTTP request
+        PrintLine "Write header"
+        MOV     r0, r7
+        ADR     r1, header
+        MOV     r2, #?header
+        SWI     Socket_Write
+
+        PrintMessage "Write gave "
+        PrintInteger r0
+        SWI     OS_NewLine
+
+; We'll count newline/carriage returns, and when we hit 4, we'll know the header is done
+        MOV     r6, #0
+; Once we have written the header, we'll only write out a few lines (because we don't want
+; to be spammy)
+        MOV     r5, #8
+
+; see if we get back a header
+10
+        PrintLine "Reading some data"
+        MOV     r0, r7
+        ADR     r1, buffer
+        MOV     r2, #?buffer
+        SWI     Socket_Read
+        PrintMessage "Read gave "
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        CMP     r0, #0
+        BLE     %FT80
+
+        PrintMessage "Data: "
+; print what we got
+        ADR     r1, buffer
+        MOV     r2, r0
+20
+        SUBS    r2, r2, #1
+        BMI     %FT30
+        LDRB    r0, [r1], #1
+
+; Are we out of the header?
+        TEQ     r6, #4
+        BNE     %FT21
+        CMP     r0, #10
+        SUBEQS  r5, r5, #1
+        BEQ     %FT30                   ; line limit hit, we're done
+        B       %FT22
+21
+; check the line feed counter
+        CMP     r0, #13
+        CMPNE   r0, #10
+        ADDEQ   r6, r6, #1
+        MOVNE   r6, #0
+
+22
+        CMP     r0, #10
+        BNE     %FT23
+        SWI     OS_NewLine
+        SWI     OS_WriteI + " "
+        SWI     OS_WriteI + " "
+        SWI     OS_WriteI + " "
+        SWI     OS_WriteI + " "
+        SWI     OS_WriteI + " "
+        SWI     OS_WriteI + " "
+        B       %BT20
+23
+        CMP     r0, #32
+        BGE     %FT25
+        SWI     OS_WriteI + "|"
+        ADD     r0, r0, #64
+25
+        SWI     OS_WriteC
+        B       %BT20
+
+; End of the data
+30
+        SWI     OS_NewLine
+        TEQ     r5, #0
+        BNE     %BT10
+
+; We're done; close the socket
+80
+        PrintLine "Closing socket"
+        MOV     r0, r7
+        SWI     Socket_Close
+
+        MOV     pc, lr
+
+sockaddr
+        DCW     AF_INET
+        DCB     (port>>8) :AND: 255
+        DCB     port :AND: 255
+        DCD     (90<<24) :OR: (223<<16) :OR: (160<<8) :OR: (217<<0)  ; gerph.org IPv4 address
+
+; struct sockaddr_in6 {
+;     u_char           sin6_len;      /* length of this structure */
+;     u_char           sin6_family;   /* AF_INET6                 */
+;     u_int16_t        sin6_port;     /* Transport layer port #   */
+;     u_int32_t        sin6_flowinfo; /* IPv6 flow information    */
+;     struct in6_addr  sin6_addr;     /* IPv6 address             */
+;     uint32_t         sin6_scope_id; /* scope zone index */
+; };
+sockaddr6
+        DCB     28                  ; sockaddr length
+        DCB     AF_INET6
+        DCB     (port>>8) :AND: 255
+        DCB     port :AND: 255
+        DCD     0                   ; flowid
+; gerph.org as an IPv6 address
+        DCB     &20
+        DCB     &01
+        DCB     &08
+        DCB     &d8
+        DCB     &10
+        DCB     &00
+        DCB     &20
+        DCB     &33
+        DCB     &57
+        DCB     &67
+        DCB     &ff
+        DCB     &c1
+        DCB     &bf
+        DCB     &01
+        DCB     &f0
+        DCB     &30
+        DCD     0                   ; scopeid
+
+header  = "GET / HTTP/1.0", 13, 10, "Host: gerph.org", 13, 10, 13, 10
+
+        ALIGN
+buffer  %       1024
+
+        END

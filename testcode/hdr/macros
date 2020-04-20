@@ -1,0 +1,117 @@
+;
+; Macros to make it easier to use certain operations.
+;
+; XSWI <swi>, <regs>*
+;   - invoke a SWI passing in explicit registers
+;
+; Push <reglist>, <condition>
+;   - push a register list on to the stack
+;
+; Pull <reglist>, <condition>
+;   - pull registers off the stack
+;
+; SETV
+;   - set the v flag
+;
+; SIGNATURE
+;   - function signature embedding
+;
+
+; -------------------------------------------------
+        MACRO
+$label  Push   $reglist, $cond
+$label  STM$cond.FD r13!, {$reglist}
+        MEND
+
+; -------------------------------------------------
+        MACRO
+$label  Pull    $reglist, $cond, $hat
+$label  LDM$cond.FD r13!, {$reglist}$hat
+        MEND
+
+; -------------------------------------------------
+        GBLS    entry_reglist
+        MACRO
+$label  Entry   $reglist
+entry_reglist SETS "$reglist"
+    [ "$reglist" = ""
+$label  STMFD   r13!, {lr}
+    |
+$label  STMFD   r13!, {$reglist, lr}
+    ]
+        MEND
+
+; -------------------------------------------------
+        MACRO
+$label  EXIT    $cond, $hat
+    [ "$entry_reglist" = ""
+$label  LDM$cond.FD r13!, {pc}$hat
+    |
+$label  LDM$cond.FD r13!, {$entry_reglist, pc}$hat
+    ]
+        MEND
+
+; -------------------------------------------------
+        MACRO
+$label  SIGNATURE
+        ALIGN   4
+        =       "$label",0
+        ALIGN   4
+        DCD     &FF000000+(:LEN:"$label"+4):AND::NOT:3
+$label
+        MEND
+
+; -------------------------------------------------
+        MACRO
+$label  SETV
+$label  MSR     CPSR_f, #(1<<28)
+        MEND
+
+; -------------------------------------------------
+        MACRO
+        XSWI_param $reg, $p
+        LCLS    arg
+    [ "$p" <> ""
+     [ "$p" :LEFT: 1 = "R" :LOR: "$p" :LEFT: 1 = "r"
+        MOV     $reg, $p
+     |
+      [ "$p" :LEFT: 1 = "^"
+arg     SETS    "$p" :RIGHT: ((:LEN: "$p") - 1)
+        ADR     $reg, $arg
+      |
+       [ "$p" :LEFT: 1 = "'"
+        MOV     $reg, #$p
+       |
+        [ "$p" :LEFT: 1 = "#"
+arg     SETS    "$p" :RIGHT: ((:LEN: "$p") - 1)
+        LDR     $reg, =$arg
+        |
+         [ $p < 256
+        MOV     $reg, #$p
+         |
+        LDR     $reg, =$p
+         ]
+        ]
+       ]
+      ]
+     ]
+    ]
+        MEND
+
+        MACRO
+        XSWI    $swi, $p0, $p1, $p2, $p3, $p4, $p5, $p6, $p7, $p8, $p9
+        XSWI_param r0, $p0
+        XSWI_param r1, $p1
+        XSWI_param r2, $p2
+        XSWI_param r3, $p3
+        XSWI_param r4, $p4
+        XSWI_param r5, $p5
+        XSWI_param r6, $p6
+        XSWI_param r7, $p7
+        XSWI_param r8, $p8
+        XSWI_param r9, $p9
+        SWI     $swi
+        MEND
+
+; -------------------------------------------------
+        END

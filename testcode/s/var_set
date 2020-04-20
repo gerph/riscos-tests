@@ -1,0 +1,107 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+
+                ^ 0, r12
+
+printbuffer     #   printbuffersize
+valuebuffer     #   256
+
+set_var_value  ROUT
+
+        MOV     r5, r1                  ; R5 => the variable to set
+
+; find the limits in the buffer
+10
+        LDRB    r0, [r1], #1
+        CMP     r0, #32
+        BGT     %BT10
+
+        MOV     r0, #0
+        STRB    r0, [r1, #-1]
+        SUBNE   r1, r1, #1
+        MOV     r6, r1                  ; R6 => the value to set
+
+; Decide if we're deleting (put a '-' before the variable name)
+        LDRB    r0, [r5]
+        TEQ     r0, #'-'
+        ADDEQ   r5, r5, #1
+        MOVEQ   r6, #-1
+        MOVEQ   r7, #-1
+        BEQ     %FT20
+
+; Work out how long this is
+        MOV     r1, r6
+15
+        LDRB    r0, [r1], #1
+        CMP     r0, #32
+        BGE     %BT15
+        SUB     r7, r1, r6
+        SUB     r7, r7, #1              ; do not include the terminator
+
+20
+
+        PrintMessage "SetVar: ", 16
+        PrintString r5
+        SWI     OS_NewLine
+
+        PrintMessage "Length: ", 16
+        PrintInteger r7
+        SWI     OS_NewLine
+
+        CMP     r7, #0
+        BGE     %FT30
+        PrintMessage "Delete"
+        B       %FT40
+30
+        PrintMessage "To Value: ", 16
+        PrintString r6
+40
+        SWI     OS_NewLine
+
+; Set the variable
+        MOV     r0, r5
+        MOV     r1, r6
+        MOV     r2, r7
+        MOV     r3, #0
+        MOV     r4, #0      ; type string (will GSTrans first)
+        SWI     OS_SetVarVal
+
+        PrintLine "------"
+
+; Now show the value, so we can see if it was done properly
+        MOV     r0, r5
+        ADR     r1, valuebuffer
+        MOV     r2, #?valuebuffer
+        MOV     r3, #0
+        MOV     r4, #0
+        SWI     OS_ReadVarVal
+
+        PrintMessage "Length: ", 16
+        PrintInteger r2
+        SWI     OS_NewLine
+
+        PrintMessage "Type: ", 16
+        PrintInteger r4
+        SWI     OS_NewLine
+
+        PrintMessage "Context: ", 16
+        TEQ     r3, #0
+        ADREQ   r3, null
+        PrintString r3
+        SWI     OS_NewLine
+
+        PrintMessage "Value: ", 16
+        MOV     r0, #0
+        STRB    r0, [r1, r2]
+        PrintString r1
+        SWI     OS_NewLine
+
+        MOV     pc, lr
+
+null
+        = "<null>", 0
+
+        END

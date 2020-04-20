@@ -1,0 +1,62 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+
+buffer_size * 32
+
+        MACRO
+$label  Convert $name
+        ADR     r0, %FT10
+        BL      print1
+        B       %FT20
+
+10
+        = "$name", 0
+        ALIGN
+
+20
+        MEND
+
+
+swifromnumber   ROUT
+        STMFD   sp!, {lr}
+
+        Convert "OS_CLI"
+        Convert "OS_WriteI+23"
+        Convert "XOS_SWINumberFromString"
+        Convert "OS_SWINumberFromString"
+        Convert "ADFS_DiscOp"
+        Convert "XADFS_DiscOp"
+        Convert "Socket_Ioctl"
+        Convert "XSocket_Ioctl"
+
+        LDMFD   sp!, {pc}
+
+print1
+        MOV     r1, r0
+        SWI     XOS_SWINumberFromString
+        BVC     %FT05
+
+        ADD     r1, r0, #4
+        ADR     r0, error_prefix
+        SWI     OS_Write0
+        MOV     r0, r1
+        B       %FT10
+
+05
+        ADR     r1, buffer
+        MOV     r2, #buffer_size
+        SWI     OS_ConvertHex8
+10
+        SWI     OS_Write0
+        SWI     OS_NewLine
+        MOV     pc, lr
+
+error_prefix = "Error: ", 0
+
+buffer  %       buffer_size
+
+        LTORG
+
+        END

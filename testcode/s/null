@@ -1,0 +1,7 @@
+
+        AREA    |Test$$Code|, CODE
+
+null    ROUT
+        MOV     pc, lr
+
+        END

@@ -1,0 +1,183 @@
+; Some macros for printing things
+
+        GBLS    printbufferaddress
+
+; if printbufferaddress is set, we use it; otherwise we use r12
+printbufferaddress  SETS    ""
+printbuffersize * 20
+
+; -------------------------------------------------------------------------
+        MACRO
+        SetupPrintBuffer $regnum
+    [ "$printbufferaddress" = ""
+        MOV     $regnum, r12
+    |
+        ADRL    $regnum, $printbufferaddress
+    ]
+        MEND
+
+; -------------------------------------------------------------------------
+        MACRO
+        PrintInteger    $regnum, $width
+        PrintNumber     $regnum, $width, OS_ConvertInteger4
+        MEND
+
+; -------------------------------------------------------------------------
+        MACRO
+        PrintHex        $regnum, $width
+        SWI     OS_WriteI + '&'
+    [ "$width" <> ""
+        PrintNumber     $regnum, $width-1, OS_ConvertHex8
+    |
+        PrintNumber     $regnum, $width, OS_ConvertHex8
+    ]
+        MEND
+
+        MACRO
+        PrintHex2       $regnum, $width
+        SWI     OS_WriteI + '&'
+    [ "$width" <> ""
+        PrintNumber     $regnum, $width-1, OS_ConvertHex2
+    |
+        PrintNumber     $regnum, $width, OS_ConvertHex2
+    ]
+        MEND
+
+; -------------------------------------------------------------------------
+        MACRO
+        PrintMessage    $message, $width
+        SWI     OS_WriteS
+        = "$message", 0
+    [ "$width" <> ""
+    [ $width > :LEN: "$message"
+        STMFD   sp!, {r1}
+        MOVS    r1, #$width - :LEN: "$message"
+10
+        SWINE   OS_WriteI + ' '
+        SUBS    r1, r1, #1
+        BPL     %BT10
+        LDMFD   sp!, {r1}
+    ]
+    ]
+        MEND
+
+; -------------------------------------------------------------------------
+        MACRO
+        PrintNumber     $regnum, $width, $swinum
+        STMFD   sp!, {r0-r2}
+    [ "$regnum" <> "r0"
+        MOV     r0, $regnum
+    ]
+        SetupPrintBuffer r1
+        MOV     r2, #printbuffersize
+        SWI     $swinum
+        SWI     OS_Write0
+    [ "$width" <> ""
+        RSB     r2, r2, #printbuffersize     ; number of characters writen
+        RSBS    r2, r2, #$width               ; number of character to write as padding
+        BMI     %FT20
+10
+        SWINE   OS_WriteI + ' '
+        SUBS    r2, r2, #1
+        BPL     %BT10
+20
+    ]
+        LDMFD   sp!, {r0-r2}
+        MEND
+
+; -------------------------------------------------------------------------
+        MACRO
+        PrintString     $regnum, $width
+        STMFD   sp!, {r0-r2}
+    [ "$regnum" <> "r0"
+        MOV     r0, $regnum
+    ]
+        MOV     r1, r0
+        SWI     OS_Write0
+    [ "$width" <> ""
+    [ $width > 0
+        SUB     r1, r0, r1
+        RSBS    r1, r1, #$width - 1
+40
+        SWIPL   OS_WriteI + ' '
+        SUBS    r1, r1, #1
+        BPL     %BT40
+    ]
+    ]
+        LDMFD   sp!, {r0-r2}
+        MEND
+
+; -------------------------------------------------------------------------
+        MACRO
+        PrintLine    $message
+        PrintMessage "$message", 0
+        SWI     OS_NewLine
+        MEND
+
+
+; -------------------------------------------------------------------------
+; Print Named Bits
+        MACRO
+        PrintNamedBits $reg, $bits, $bitwidth
+        STMFD   sp!, {r0-r5}
+        LDR     r5, =$bits
+        MOV     r3, $reg
+        SWI     OS_WriteS
+        = "Bit: ",0
+
+; Print the bit pattern
+        MOV     r0, #1 << ($bitwidth - 1)   ; current mask
+        MOV     r1, #$bitwidth - 1          ; current bit number
+        MOV     r2, #$bitwidth - 1          ; lowest bit used
+        MOV     r4, #0                      ; width used in bits
+10
+        TST     r0, r5
+        SWIEQ   OS_WriteI + '.'
+        BEQ     %FT30
+        MOV     r2, r1
+        ADD     r4, r4, #1
+        TST     r0, r3
+        SWINE   OS_WriteI + '1'
+        SWIEQ   OS_WriteI + '0'
+30
+        SUB     r1, r1, #1
+        MOVS    r0, r0, LSR #1
+        BNE     %BT10
+
+; spacer
+        SWI     OS_WriteI + ' '
+        SWI     OS_WriteI + ' '
+
+; Print the value
+        AND     r1, r3, r5
+        MOV     r1, r1, LSR r2              ; shift down
+        TEQ     r4, #1
+        BNE     %FT50
+
+; simple flag
+        TEQ     r1, #0
+        ADRNE   r0, %FT40
+        ADREQ   r0, %FT41
+        PrintString r0, 20
+        B       %FT60
+40
+        = "SET",0
+41
+        = "clear",0
+        ALIGN
+
+; bit mask
+50
+        PrintHex r1, 10
+        PrintInteger r1, 10
+
+60
+        PrintMessage $bits, 0
+
+        SWI     OS_NewLine
+
+        LDMFD   sp!, {r0-r5}
+        MEND
+
+
+        END

@@ -1,0 +1,102 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+
+gstrans     ROUT
+
+        MOV     r4, #0                  ; flags
+10
+        LDRB    r0, [r1], #1
+        TEQ     r0, #'q'
+        ORREQ   r4, r4, #(1<<31)        ; quotes not special
+        BEQ     %BT10
+        TEQ     r0, #'e'
+        ORREQ   r4, r4, #(1<<30)        ; escapes not special
+        BEQ     %BT10
+        TEQ     r0, #'s'
+        ORREQ   r4, r4, #(1<<29)        ; spaces do not terminate
+        BEQ     %BT10
+        TEQ     r0, #'0'
+        BEQ     %BT10
+        TEQ     r0, #' '
+        BNE     %FT99
+
+        PrintMessage "Flags:", 14
+        PrintHex r4
+        SWI     OS_NewLine
+
+        PrintMessage "String:", 14
+        PrintString r1
+        SWI     OS_NewLine
+
+        PrintLine "Calling OS_GSTrans"
+
+        MOV     r5, r1
+        MOV     r0, r1
+        ADR     r1, mybuffer
+        ORR     r2, r4, #?mybuffer
+        SWI     OS_GSTrans
+        BCS     %FT80
+
+        PrintLine "Returned"
+
+        PrintMessage "Consumed:", 14
+        SUB     r4, r0, r5
+        PrintInteger r4
+        SWI     OS_NewLine
+
+        PrintMessage "Wrote:", 14
+        PrintInteger r2
+        SWI     OS_NewLine
+
+        PrintMessage "Terminator:", 14
+        LDRB    r4, [r0, #-1]
+        STMFD   sp!, {r0}
+        MOV     r0, r4
+        CMP     r0, #32
+        BHS     %FT30
+        SWI     OS_WriteI + '<'
+        PrintInteger r0
+        SWI     OS_WriteI + '>'
+        B       %FT35
+30
+        SWI     OS_WriteC
+35
+        SWI     OS_WriteI + ' '
+        PrintInteger r4
+        LDMFD   sp!, {r0}
+        SWI     OS_NewLine
+
+        PrintMessage "Output:", 14
+        ADD     r3, r1, r2
+        SWI     OS_WriteI + '>'
+        SWI     OS_WriteI + '>'
+        SWI     OS_WriteI + '>'
+        STMFD   sp!, {r0, r1}
+        MOV     r0, r1
+        MOV     r1, r2
+        SWI     OS_WriteN
+        LDMFD   sp!, {r0, r1}
+        SWI     OS_WriteI + '<'
+        SWI     OS_WriteI + '<'
+        SWI     OS_WriteI + '<'
+        SWI     OS_NewLine
+        B       %FT90
+
+80
+        PrintLine "ERROR: Should not have overflowed"
+        MOV     pc, lr
+
+90
+        CMP     r0, r0
+        MOV     pc, lr
+
+99
+        PrintLine "ERROR: Use <q|e|s|0> <string>"
+        MOV     pc, lr
+
+mybuffer % 256
+
+        END

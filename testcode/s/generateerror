@@ -1,0 +1,15 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+
+generate_error      ROUT
+        ADR     r0, err
+        SWI     OS_GenerateError
+        MOV     pc, lr
+
+err
+        DCD     1234
+        = "My Error", 0
+
+        END

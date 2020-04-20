@@ -1,0 +1,20 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+
+internet_version  ROUT
+        SWI     Socket_Version
+        PrintMessage "Socket version: "
+        PrintInteger r0
+        SWI     OS_NewLine
+        CMP     r0, #500
+        BLT     nogood
+        MOV     pc, lr
+
+nogood
+        PrintLine "Error: Internet module must be >= 500"
+        MOV     pc, lr
+
+        END

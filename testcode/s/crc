@@ -1,0 +1,56 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+
+        MACRO
+$label  CRC     $string, $value
+        LDR     r4, =$value
+        PrintMessage "'$string' should give "
+        PrintInteger r4, 6
+        PrintMessage "got "
+
+        MOV     r0, #0
+        ADR     r1, %FT10
+        ADD     r2, r1, #:LEN: "$string"
+        MOV     r3, #1
+        SWI     OS_CRC
+        PrintInteger r0, 6
+
+        TEQ     r0, r4
+        BNE     %FT15
+
+        PrintLine "OK"
+        B       %FT20
+
+10
+        = "$string", 0
+        ALIGN
+        LTORG
+15
+        PrintLine "FAILED"
+
+20
+        MEND
+
+
+crc     ROUT
+        STMFD   sp!, {lr}
+
+        CRC     "", 0
+        CRC     "H", 13824
+        CRC     "He", 11254
+        CRC     "Hel", 27563
+        CRC     "Hell", 37418
+        CRC     "Hello", 62291
+        CRC     "Hello ", 58802
+        CRC     "Hello T", 35428
+        CRC     "Hello Th", 1418
+        CRC     "Hello The", 35908
+        CRC     "Hello Ther", 5644
+        CRC     "Hello There", 11990
+
+        LDMFD   sp!, {pc}
+
+        END

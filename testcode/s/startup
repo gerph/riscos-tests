@@ -1,0 +1,94 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+
+ReadSysInfoReason_ROMInformation * 0x9
+ReadSysInfoReason_ROMInformation_OSName * 0x0
+ReadSysInfoReason_ROMInformation_HardwareName * 0x7
+Service_OSInitBanner * 0xCF
+OSMemoryReason_Amounts * 0x8
+OSMemoryReason_Amounts_DRAM * 0x100
+OSMemoryReason_Amounts_SoftROM * 0x500
+
+startup     ROUT
+
+        MOV     r4, r12
+
+; Strictly this only happens if the NoOSMessagesOnStartup is set.
+        MOV     R0, #0
+        MOV     R1, #Service_OSInitBanner
+; R0-> processor name, or 0 if unknown
+; R1 = Service_OSInitBanner
+        SWI     XOS_ServiceCall
+
+        TEQ     r12, #0
+        BEQ     corrupted_r12_zero
+
+        TEQ     r12, r4
+        BNE     corrupted_r12
+
+        MOV     r0, #ReadSysInfoReason_ROMInformation
+        MOV     r1, #ReadSysInfoReason_ROMInformation_OSName
+        SWI     OS_ReadSysInfo
+        TEQ     r0,#0
+        ADREQ   r0, ThisOSVersionStringForStartupBanner
+        SWI     XOS_NewLine
+        SWI     XOS_Write0
+        SWI     XOS_WriteI+" "
+
+; Get the memory limits
+        LDR     r0, =OSMemoryReason_Amounts :OR: OSMemoryReason_Amounts_DRAM
+        SWI     XOS_Memory
+        MUL     r0, r1, r2              ; amount of DRAM present
+
+        STMFD   sp!, {r0}
+        LDR     r0, =OSMemoryReason_Amounts :OR: OSMemoryReason_Amounts_SoftROM
+        SWI     XOS_Memory              ; returns amount of soft ROM (pages) in r1
+        MOVVS   r1, #0
+        MUL     r0, r1, r2
+        LDMFD   sp!, {r1}
+        ADD     r0, r0, r1
+
+        MOV     R0, R0, LSR #20         ; /(1024*1024)
+
+; Give startup message in megabytes
+        MOV     R1, R12
+        MOV     R2, #256
+        SWI     XOS_ConvertInteger4
+        SWI     XOS_Write0
+        SWI     XOS_WriteS
+        =       "MB", 10, 10, 0      ; title complete
+
+; Show the hardware information, if any
+        MOV     r0, #ReadSysInfoReason_ROMInformation
+        MOV     r1, #ReadSysInfoReason_ROMInformation_HardwareName
+        SWI     OS_ReadSysInfo
+        TEQ     r0,#0
+        ADREQ   r0, ThisHardwareNameStringForStartupBanner
+        SWI     OS_WriteS
+        = "Running on ", 0
+        ALIGN
+        SWI     XOS_Write0
+        SWI     XOS_NewLine
+        SWI     XOS_NewLine
+
+        MOV     pc, lr
+
+corrupted_r12
+        SWI     XOS_WriteS
+        = "R12 has been corrupted (or R4 was)",0
+        SWI     XOS_NewLine
+        MOV     pc, lr
+
+corrupted_r12_zero
+        SWI     XOS_WriteS
+        = "R12 has been corrupted (changed to 0)",0
+        SWI     XOS_NewLine
+        MOV     pc, lr
+
+ThisOSVersionStringForStartupBanner = "No OS Version", 0
+
+ThisHardwareNameStringForStartupBanner = "Unknown hardware", 0
+
+        END

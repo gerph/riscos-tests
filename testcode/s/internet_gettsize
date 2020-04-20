@@ -1,0 +1,14 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+
+internet_gettsize ROUT
+        SWI     Socket_Gettsize
+        PrintMessage "Socks table size: "
+        PrintInteger r0
+        SWI     OS_NewLine
+        MOV     pc, lr
+
+        END

@@ -1,0 +1,29 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+
+ReadSysInfoReason_RawUniqueId * 0x5
+
+
+readsysinfo     ROUT
+
+        PrintLine "Read Unique ID"
+
+        MOV     r0, #ReadSysInfoReason_RawUniqueId
+        MOV     r1, #&9900
+        MOV     r2, #&110000
+        SWI     OS_ReadSysInfo
+
+        PrintMessage "Low word: ",10
+        PrintHex r0
+        SWI     OS_NewLine
+
+        PrintMessage "High word: ",10
+        PrintHex r1
+        SWI     OS_NewLine
+
+        MOV     pc, lr
+
+        END

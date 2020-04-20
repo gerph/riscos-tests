@@ -1,0 +1,30 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+
+validate_address      ROUT
+        MOV     r0, #&88000000
+        ADD     r0, r0, #4
+        SWI     OS_ValidateAddress
+        BCS     %FT40
+
+        SWI     OS_WriteS
+        = "Data is valid", 0
+        SWI     OS_NewLine
+
+        MOV     pc, lr
+
+40
+        SWI     OS_WriteS
+        = "Data is not valid", 0
+        SWI     OS_NewLine
+
+        MOV     pc, lr
+end
+
+err
+        DCD     1234
+        = "My Error", 0
+
+        END

@@ -1,0 +1,29 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+
+hello_world     ROUT
+        ADR     r0, message
+        SWI     OS_Write0
+        ADR     r1, end
+        CMP     r0, r1
+        BNE     bad_return
+        SWI     OS_NewLine
+        MOV     pc, lr
+
+bad_return
+        ADR     r0, return_wrong
+        SWI     OS_GenerateError
+
+message
+        = "Hello world"
+end
+        = 0
+
+return_wrong
+        ALIGN
+        DCD     1
+        = "R0 on return from OS_Write0 was not correctly set to the terminator"
+
+        END

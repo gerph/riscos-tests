@@ -1,0 +1,20 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+
+ABEX    *       0x58454241
+
+
+exit_2  ROUT
+        ADR     r0, err
+        LDR     r1, =ABEX
+        MOV     r2, #2
+        SWI     OS_Exit
+
+
+
+err     DCD     100
+        = "Using RC 2", 0
+
+        END

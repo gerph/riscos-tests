@@ -1,0 +1,79 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+
+buffer_size * 16
+
+        MACRO
+$label  Convert $value
+        LDR     r0, =$value
+        BL      print1
+        LDR     r0, =$value
+        BL      print2
+        LDR     r0, =$value
+        BL      print4
+        LDR     r0, =$value
+        BL      print6
+        LDR     r0, =$value
+        BL      print8
+        SWI     OS_NewLine
+        MEND
+
+
+converthex     ROUT
+        STMFD   sp!, {lr}
+
+        Convert 5
+        Convert 54321
+        Convert -45
+        Convert &77443322
+        Convert -&85432
+
+        LDMFD   sp!, {pc}
+
+print1
+        ADR     r1, buffer
+        MOV     r2, #buffer_size
+        SWI     OS_ConvertHex1
+        SWI     OS_Write0
+        SWI     OS_NewLine
+        MOV     pc, lr
+
+print2
+        ADR     r1, buffer
+        MOV     r2, #buffer_size
+        SWI     OS_ConvertHex2
+        SWI     OS_Write0
+        SWI     OS_NewLine
+        MOV     pc, lr
+
+print4
+        ADR     r1, buffer
+        MOV     r2, #buffer_size
+        SWI     OS_ConvertHex4
+        SWI     OS_Write0
+        SWI     OS_NewLine
+        MOV     pc, lr
+
+print6
+        ADR     r1, buffer
+        MOV     r2, #buffer_size
+        SWI     OS_ConvertHex6
+        SWI     OS_Write0
+        SWI     OS_NewLine
+        MOV     pc, lr
+
+print8
+        ADR     r1, buffer
+        MOV     r2, #buffer_size
+        SWI     OS_ConvertHex8
+        SWI     OS_Write0
+        SWI     OS_NewLine
+        MOV     pc, lr
+
+buffer  %       buffer_size
+
+        LTORG
+
+        END

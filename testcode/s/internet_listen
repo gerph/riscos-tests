@@ -1,0 +1,464 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+        GET     hdr.macros
+
+AF_INET     * 2
+AF_INET6    * 28
+SOCK_STREAM * 1    ; stream socket */
+SOCK_DGRAM  * 2    ; datagram socket */
+IPPROTO_IP  * 0    ; dummy for IP
+IPPROTO_TCP * 6    ; tcp
+IPPROTO_UDP * 17   ; user datagram protocol
+SOL_SOCKET * &FFFF
+SO_REUSEADDR * 0x0004   ; allow local address reuse
+
+
+port * 9901
+backlog * 1
+
+; Within this code:
+;   r8 is 4 or 6 depending on the protocol to use
+;   r7 is the listening socket handle
+;   r9 is the client socket handle
+;   r6 is the server socket handle (the one that was accepted)
+
+internet_listen ROUT
+        Push    "lr"
+        MOV     r6, #-1             ; no server socket
+        MOV     r7, #-1             ; no listening socket
+        MOV     r8, #4              ; IPv4 by default
+        MOV     r9, #-1             ; no client socket
+
+05
+        LDRB    r0, [r1], #1
+        TEQ     r0, #'6'
+        TEQNE   r0, #'4'
+        BNE     %FT10
+        TEQ     r0, #'6'
+        MOVEQ   r8, #6
+        MOVNE   r8, #4
+        LDRB    r0, [r1], #1
+
+10
+        ADR     lr, %BT05
+        TEQ     r0, #0
+        BEQ     %FT90
+
+        TEQ     r0, #'t'
+        BEQ     listen_tcp
+        TEQ     r0, #'u'
+        BEQ     listen_udp
+
+        TEQ     r0, #'a'
+        BEQ     accept_connection
+
+        TEQ     r0, #'c'
+        BEQ     connect_to_listener
+
+        TEQ     r0, #'x'
+        BEQ     close_socket
+
+        PrintLine "Syntax: internet_listen [4|6](t|u|a|c|x)*"
+90
+        Pull    "pc"
+
+
+close_socket SIGNATURE
+; close the listening socket
+; INTENTIONALLY leaves the register pointing at the old handle, so that we can
+; try to close it again.
+        Push    "r1, r8, lr"
+        PrintLine "--- Closing listening socket"
+        PrintMessage "Closing socket: "
+        PrintInteger r7
+        SWI     OS_NewLine
+
+        MOV     r0, r7
+        SWI     Socket_Close
+
+        Pull    "r1, r8, pc"
+
+
+
+listen_tcp SIGNATURE
+; listen on TCP port
+; => r8 = 4 or 6 depending on the protocol requested
+        Push    "r1, r8, lr"
+        PrintLine "--- Listening on TCP"
+        PrintLine "Creating TCP socket"
+        TEQ     r8, #4
+        MOVEQ   r0, #AF_INET
+        MOVNE   r0, #AF_INET6
+        MOV     r1, #SOCK_STREAM
+        MOV     r2, #IPPROTO_TCP
+        SWI     Socket_Creat
+        MOV     r7, r0
+        PrintMessage "Socket created: "
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        PrintLine "Making address reusable"
+        MOV     r0, r7
+        LDR     r1, =SOL_SOCKET
+        MOV     r2, #SO_REUSEADDR
+        ADRL    r3, one
+        MOV     r4, #?one
+        SWI     Socket_Setsockopt
+
+        PrintLine "Binding"
+        MOV     r0, r7
+        TEQ     r8, #4
+        ADREQL  r1, sockaddr_in
+        ADRNEL  r1, sockaddr_in6
+        MOVEQ   r2, #16
+        MOVNE   r2, #28
+        SWI     Socket_Bind
+
+        PrintLine "Listening"
+        MOV     r0, r7
+        MOV     r1, #backlog
+        SWI     Socket_Listen
+
+        PrintLine "Getting our socket name"
+        MOV     r0, r7
+        ADRL    r1, buffer
+        TEQ     r8, #4
+        MOVEQ   r2, #16
+        MOVNE   r2, #28
+        Push    "r2"
+        MOV     r2, sp
+        SWI     Socket_Getsockname_1
+        Pull    "r2"
+        PrintMessage "Socket address length: "
+        PrintInteger r2
+        SWI     OS_NewLine
+
+        ADRL    r1, buffer
+        BL      show_sockaddr
+
+        Pull    "r1, r8, pc"
+
+
+listen_udp SIGNATURE
+; listen on UDP port
+        Push    "r1, r8, lr"
+        PrintLine "--- Listening on UDP"
+        PrintLine "Creating UDP socket"
+        TEQ     r8, #4
+        MOVEQ   r0, #AF_INET
+        MOVNE   r0, #AF_INET6
+        MOV     r1, #SOCK_DGRAM
+        MOV     r2, #IPPROTO_UDP
+        SWI     Socket_Creat
+        MOV     r7, r0
+        PrintMessage "Socket created: "
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        PrintLine "Making address reusable"
+        MOV     r0, r7
+        LDR     r1, =SOL_SOCKET
+        MOV     r2, #SO_REUSEADDR
+        ADRL    r3, one
+        MOV     r4, #?one
+        SWI     Socket_Setsockopt
+
+        PrintLine "Binding"
+        MOV     r0, r7
+        TEQ     r8, #4
+        ADREQL  r1, sockaddr_in
+        ADRNEL  r1, sockaddr_in6
+        MOVEQ   r2, #16
+        MOVNE   r2, #28
+        SWI     Socket_Bind
+
+        Pull    "r1, r8, pc"
+
+
+show_sockaddr SIGNATURE
+; display a sockaddr structure
+        Push    "lr"
+        LDRB    r0, [r1, #1]
+        TEQ     r0, #0
+        BEQ     %FT10
+        PrintLine "New style sockaddr"
+        LDRB    r2, [r1, #0]
+        PrintMessage "Size: ", 14
+        PrintInteger r2
+        SWI     OS_NewLine
+        B       %FT20
+
+10 ; old style
+        PrintLine "Old style sockaddr"
+
+20
+        PrintMessage "Family: ", 14
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        ADR     lr, %FT90
+        TEQ     r0, #AF_INET
+        BEQ     show_afinet
+        TEQ     r0, #AF_INET6
+        BEQ     show_afinet6
+
+        PrintLine "Address family not supported here"
+90
+        Pull    "pc"
+
+
+show_afinet SIGNATURE
+        Push    "lr"
+        LDRB    r2, [r1, #2]
+        LDRB    r3, [r1, #3]
+        ORR     r0, r3, r2, LSL #8
+        PrintMessage "Port number: ", 14
+        PrintInteger r0
+        SWI     OS_NewLine
+        PrintMessage "IPv4 address: ", 14
+
+        LDRB    r0, [r1, #4]
+        PrintInteger r0
+        SWI     OS_WriteI + "."
+
+        LDRB    r0, [r1, #5]
+        PrintInteger r0
+        SWI     OS_WriteI + "."
+
+        LDRB    r0, [r1, #6]
+        PrintInteger r0
+        SWI     OS_WriteI + "."
+
+        LDRB    r0, [r1, #7]
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        Pull    "pc"
+
+
+show_afinet6 SIGNATURE
+        Push    "lr"
+        LDRB    r2, [r1, #2]
+        LDRB    r3, [r1, #3]
+        ORR     r0, r3, r2, LSL #8
+        PrintMessage "Port number: ", 14
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        LDR     r0, [r1, #4]
+        PrintMessage "FlowInfo: ", 14
+        PrintHex r0
+        SWI     OS_NewLine
+
+        PrintMessage "IPv6 address: ", 14
+
+; print out 16 bits at a time
+        ADD     r4, r1, #8
+        MOV     r5, #16
+10
+        LDRB    r2, [r4], #1
+        LDRB    r3, [r4], #1
+        ORR     r0, r3, r2, LSL #8
+        PrintNumber r0,, OS_ConvertHex4
+
+        SUBS    r5, r5, #2
+        SWINE   OS_WriteI + ":"
+        BNE     %BT10
+
+        SWI     OS_NewLine
+
+        LDR     r0, [r1, #24]
+        PrintMessage "ScopeID: ", 14
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        Pull    "pc"
+
+
+accept_connection
+; Accept a connection
+; => r7 = listening socket
+        Push    "r1, r8, lr"
+        PrintLine "--- Accept connection"
+        MOV     r0, r7
+        ADRL    r1, buffer
+        TEQ     r8, #4
+        MOVEQ   r2, #16
+        MOVNE   r2, #28
+        Push    "r2"
+        MOV     r2, sp
+        SWI     Socket_Accept_1
+        Pull    "r2"
+        PrintMessage "Socket address length: "
+        PrintInteger r2
+        SWI     OS_NewLine
+
+        MOV     r6, r0
+        PrintLine "Accepted"
+        PrintMessage "New socket: "
+        PrintInteger r6
+        SWI     OS_NewLine
+
+        PrintLine "Peer address:"
+        ADRL    r1, buffer
+        BL      show_sockaddr
+        Pull    "r1, r8, pc"
+
+
+
+connect_to_listener
+; Connect to the listening socket - requires the use of non-blocking socket for the
+; one we're using to connect
+; => r8 = 4 or 6 depending on connection type
+;    r7 = listening socket
+        Push    "r1, r8, lr"
+        PrintLine "--- Connect to the listener"
+
+        PrintLine "Create a new TCP socket"
+        TEQ     r8, #4
+        MOVEQ   r0, #AF_INET
+        MOVNE   r0, #AF_INET6
+        MOV     r1, #SOCK_STREAM
+        MOV     r2, #IPPROTO_TCP
+        SWI     Socket_Creat
+        MOV     r9, r0
+        PrintMessage "Socket created: "
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        PrintLine "Connect to the listener address"
+        MOV     r0, r9
+        TEQ     r8, #4
+        ADREQL  r1, connect_sockaddr_in
+        ADRNEL  r1, connect_sockaddr_in6
+        MOVEQ   r2, #16
+        MOVNE   r2, #28
+        SWI     Socket_Connect
+
+        PrintLine "Getting our socket name"
+        MOV     r0, r9
+        ADRL    r1, buffer
+        TEQ     r8, #4
+        MOVEQ   r2, #16
+        MOVNE   r2, #28
+        Push    "r2"
+        MOV     r2, sp
+        SWI     Socket_Getsockname_1
+        Pull    "r2"
+        PrintMessage "Socket address length: "
+        PrintInteger r2
+        SWI     OS_NewLine
+        PrintLine "OUR address:"
+        ADRL    r1, buffer
+        BL      show_sockaddr
+
+        PrintLine "Getting peer name"
+        MOV     r0, r9
+        ADRL    r1, buffer
+        TEQ     r8, #4
+        MOVEQ   r2, #16
+        MOVNE   r2, #28
+        Push    "r2"
+        MOV     r2, sp
+        SWI     Socket_Getpeername_1
+        Pull    "r2"
+        PrintMessage "Socket address length: "
+        PrintInteger r2
+        SWI     OS_NewLine
+        PrintLine "THEIR address:"
+        ADRL    r1, buffer
+        BL      show_sockaddr
+
+        Pull    "r1, r8, pc"
+
+
+; Flag used for setting options
+one     DCD     1
+
+
+sockaddr_in
+        DCW     AF_INET
+        DCB     (port>>8) :AND: 255
+        DCB     port :AND: 255
+        DCD     0                       ; address 0, all addresses
+
+; struct sockaddr_in6 {
+;     u_char           sin6_len;      /* length of this structure */
+;     u_char           sin6_family;   /* AF_INET6                 */
+;     u_int16_t        sin6_port;     /* Transport layer port #   */
+;     u_int32_t        sin6_flowinfo; /* IPv6 flow information    */
+;     struct in6_addr  sin6_addr;     /* IPv6 address             */
+;     uint32_t         sin6_scope_id; /* scope zone index */
+; };
+sockaddr_in6
+        DCB     28                  ; sockaddr length
+        DCB     AF_INET6
+        DCB     (port>>8) :AND: 255
+        DCB     port :AND: 255
+        DCD     0                   ; flowid
+; any address, as IPv6
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     0
+        DCD     0                   ; scopeid
+
+
+connect_sockaddr_in
+        DCW     AF_INET
+        DCB     (port>>8) :AND: 255
+        DCB     port :AND: 255
+        DCD     0x0100007f          ; localhost, IPv4
+
+; struct sockaddr_in6 {
+;     u_char           sin6_len;      /* length of this structure */
+;     u_char           sin6_family;   /* AF_INET6                 */
+;     u_int16_t        sin6_port;     /* Transport layer port #   */
+;     u_int32_t        sin6_flowinfo; /* IPv6 flow information    */
+;     struct in6_addr  sin6_addr;     /* IPv6 address             */
+;     uint32_t         sin6_scope_id; /* scope zone index */
+; };
+connect_sockaddr_in6
+        DCB     28                  ; sockaddr length
+        DCB     AF_INET6
+        DCB     (port>>8) :AND: 255
+        DCB     port :AND: 255
+        DCD     0                   ; flowid
+; localhost address, as IPv6
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     0
+        DCB     1
+        DCD     0                   ; scopeid
+
+
+buffer % 256
+
+        END

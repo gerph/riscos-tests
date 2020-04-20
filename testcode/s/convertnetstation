@@ -1,0 +1,55 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+
+buffer_size * 16
+
+        MACRO
+$label  Convert $network, $station
+        ADR     r0, %FT10
+        BL      print_netstation
+        ADR     r0, %FT10
+        BL      print_fixednetstation
+        SWI     OS_NewLine
+        B       %FT20
+10
+        DCD     $station
+        DCD     $network
+20
+        MEND
+
+
+convertnetstation    ROUT
+        STMFD   sp!, {lr}
+
+        Convert 0, 0
+        Convert 0, 200
+        Convert 0, 254
+        Convert 1, 0
+        Convert 1, 200
+        Convert 1, 254
+
+        LDMFD   sp!, {pc}
+
+print_netstation
+        ADR     r1, buffer
+        MOV     r2, #buffer_size
+        SWI     OS_ConvertNetStation
+        SWI     OS_Write0
+        SWI     OS_NewLine
+        MOV     pc, lr
+
+print_fixednetstation
+        ADR     r1, buffer
+        MOV     r2, #buffer_size
+        SWI     OS_ConvertFixedNetStation
+        SWI     OS_Write0
+        SWI     OS_NewLine
+        MOV     pc, lr
+
+buffer  %       buffer_size
+
+        LTORG
+
+        END

@@ -1,0 +1,31 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+
+
+callaswi_r12  ROUT
+
+        LDR     r10, =OS_WriteI+'?'
+
+; test that the non-X version works
+        ADR     r0, callaswi_write0
+        MOV     r12, #OS_Write0
+        SWI     OS_CallASWIR12
+        SWI     OS_NewLine
+
+; and that the X-variant does exactly the same thing.
+        ADR     r0, callaswi_write0_x
+        MOV     r12, #OS_Write0
+        SWI     XOS_CallASWIR12
+
+        SWI     OS_NewLine
+
+        SWI     OS_Exit
+
+callaswi_write0_x
+        = "X"
+callaswi_write0
+        = "OS_CallASWIR12 OS_Write0", 0
+
+        END

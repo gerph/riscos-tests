@@ -1,0 +1,95 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+
+                ^ 0, r12
+
+printbuffer     #   printbuffersize
+valuebuffer     #   256
+
+read_var_value  ROUT
+
+        MOV     r5, r1
+        PrintMessage "ReadVarValue: ", 16
+        PrintString r5
+        SWI     OS_NewLine
+
+; Ensure the buffer is initialised with a value so we know it's not
+; corrupted.
+        LDR     r0, magic
+        STR     r0, valuebuffer
+
+; First read just the length
+        MOV     r0, r5
+        ADR     r1, valuebuffer
+        MOV     r2, #-1
+        MOV     r3, #0
+        MOV     r4, #0
+        SWI     XOS_ReadVarVal
+
+        TEQ     r2, #0
+        BNE     %FT20
+        PrintLine "Claims to not exist"
+        BEQ     %FT30
+
+20
+        MVN     r2, r2
+        PrintMessage "Read length: ", 16
+        PrintInteger r2
+        SWI     OS_NewLine
+
+30
+; check if the buffer was corrupted
+        LDR     r0, magic
+        LDR     r2, [r1]
+        TEQ     r0, r2
+        BEQ     %FT40
+        PrintLine "**** ERROR: Corruption of our buffer on read length"
+        PrintMessage "Expected: ", 16
+        PrintHex r0
+        SWI     OS_NewLine
+        PrintMessage "Got: ", 16
+        PrintHex r2
+        SWI     OS_NewLine
+40
+
+        PrintLine "----"
+
+; Now read the variable itself
+        MOV     r0, r5
+        ADR     r1, valuebuffer
+        MOV     r2, #?valuebuffer
+        MOV     r3, #0
+        MOV     r4, #0
+        SWI     OS_ReadVarVal
+
+        PrintMessage "Length: ", 16
+        PrintInteger r2
+        SWI     OS_NewLine
+
+        PrintMessage "Type: ", 16
+        PrintInteger r4
+        SWI     OS_NewLine
+
+        PrintMessage "Context: ", 16
+        TEQ     r3, #0
+        ADREQ   r3, null
+        PrintString r3
+        SWI     OS_NewLine
+
+        PrintMessage "Value: ", 16
+        MOV     r0, #0
+        STRB    r0, [r1, r2]
+        PrintString r1
+        SWI     OS_NewLine
+
+        MOV     pc, lr
+
+magic   DCD     &61626364
+
+null
+        = "<null>", 0
+
+        END

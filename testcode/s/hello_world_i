@@ -1,0 +1,21 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+
+hello_world     ROUT
+        SWI     &100 + 'H'
+        SWI     &100 + 'e'
+        SWI     &100 + 'l'
+        SWI     &100 + 'l'
+        SWI     &100 + 'o'
+        SWI     &100 + ' '
+        SWI     &100 + 'w'
+        SWI     &100 + 'o'
+        SWI     &100 + 'r'
+        SWI     &100 + 'l'
+        SWI     &100 + 'd'
+        SWI     OS_NewLine
+        MOV     pc, lr
+
+        END

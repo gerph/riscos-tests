@@ -1,0 +1,82 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+        GET     hdr.macros
+
+UpCallV * 0x1d
+
+upcall  ROUT
+
+        Push    "lr"
+
+        Push    "r1"
+10
+        ADR     r14, %BT10
+        Pull    "r1"
+        LDRB    r0, [r1], #1
+        Push    "r1"
+        TEQ     r0, #'c'            ; Claim the upcall vector
+        BEQ     do_claim
+        TEQ     r0, #'k'            ; Claim the upcall vector with a claiming handler
+        BEQ     do_claim_claiming
+        TEQ     r0, #'u'            ; Issue an upcall
+        BEQ     do_upcall
+        TEQ     r0, #'e'            ; Set up the environment handler
+        BEQ     do_envhandler
+        CMP     r0, #32
+        BLT     done
+
+        PrintLine "Use c|u|e repeated"
+        Pull    "r1, pc"
+
+done
+        PrintLine "Done"
+        Pull    "r1, pc"
+
+
+do_claim SIGNATURE
+        PrintLine "--- Claim UpCallV"
+
+        XSWI    OS_Claim, #UpCallV, ^vector
+        MOV     pc, lr
+
+do_claim_claiming SIGNATURE
+        PrintLine "--- Claim UpCallV with claiming handler"
+
+        XSWI    OS_Claim, #UpCallV, ^vector_claiming
+        MOV     pc, lr
+
+do_envhandler SIGNATURE
+        PrintLine "--- Claim UpCall Handler"
+
+        XSWI    OS_ChangeEnvironment, #16, ^envhandler, r12
+
+        MOV     pc, lr
+
+do_upcall SIGNATURE
+        PrintLine ">>> Issue UpCall"
+        XSWI    OS_UpCall, 6
+        PrintLine "<<< Back from UpCall"
+        MOV     pc, lr
+
+
+vector SIGNATURE
+        Push    "lr"
+        PrintLine "+++ Vector entered"
+        Pull    "pc"
+
+
+vector_claiming SIGNATURE
+        Push    "lr"
+        PrintLine "+++ Vector entered, and claiming"
+        Pull    "lr, pc"
+
+
+envhandler SIGNATURE
+        Push    "lr"
+        PrintLine "+++ UpCall Handler entered"
+        Pull    "pc"
+
+        END

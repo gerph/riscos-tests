@@ -1,0 +1,183 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+
+; Use <keywords>:<input string>:<expectation>
+
+readargs    ROUT
+
+        STMFD   sp!, {lr}
+; r1-> arguments
+
+        MOV     r7, r1                  ; R7 = keyword definition
+10
+        LDRB    r0, [r1], #1
+        CMP     r0, #32
+        BLT     %FT99
+        TEQ     r0, #':'
+        BNE     %BT10
+
+        MOV     r0, #0
+        STRB    r0, [r1, #-1]
+        MOV     r8, r1                  ; R8 = input string
+
+20
+        LDRB    r0, [r1], #1
+        CMP     r0, #32
+        BLT     %FT99
+        TEQ     r0, #':'
+        BNE     %BT20
+
+        MOV     r0, #0
+        STRB    r0, [r1, #-1]
+        MOV     r9, r1                  ; R9 = argument expectation
+
+; State what we're doing
+        PrintMessage "Input", 10
+        PrintString r8
+        SWI     OS_NewLine
+
+        PrintMessage "Keywords", 10
+        PrintString r7
+        SWI     OS_NewLine
+
+        PrintLine "-----"
+; Call OS_ReadArgs
+        MOV     r0, r7
+        MOV     r1, r8
+        ADD     r2, r12, #256
+        MOV     r3, #256
+        SWI     XOS_ReadArgs
+        BVS     %FT80
+
+; Now parse the outputs
+        MOV     r4, #0
+40
+        LDR     r1, [r2], #4            ; r1 = value
+        LDRB    r0, [r9], #1            ; r0 = expectation
+        CMP     r0, #32
+        BLE     %FT90
+
+        PrintInteger r4, 4
+        SWI     OS_WriteC
+        SWI     OS_WriteI + ' '
+        SWI     OS_WriteI + ' '
+        PrintHex r1, 10
+
+        ADR     lr, %BT40
+        TEQ     r0, #'G'
+        BEQ     is_gstrans
+        TEQ     r0, #'E'
+        BEQ     is_expression
+        TEQ     r0, #'B'
+        BEQ     is_boolean
+        TEQ     r0, #'S'
+        BEQ     is_string
+        PrintLine "Error: Unrecognised expectation"
+        B       %FT90
+
+is_string
+; string, 0 terminated
+        TEQ     r1, #0
+        BNE     %FT50
+        PrintLine "NULL"
+        MOV     pc, lr
+50
+        SWI     OS_WriteI + '>'
+        MOV     r0, r1
+        SWI     OS_Write0
+        SWI     OS_WriteI + '<'
+        SWI     OS_NewLine
+        MOV     pc, lr
+
+is_gstrans
+; length in two bytes
+; string for length bytes
+        TEQ     r1, #0
+        BNE     %FT60
+        PrintLine "NULL"
+        MOV     pc, lr
+60
+
+        LDRB    r5, [r1], #1
+        LDRB    r6, [r1], #1
+        ORR     r5, r5, r6, LSL #8
+        PrintMessage "Len: ", 6
+        PrintInteger r5, 6
+        SWI     OS_WriteI + '>'
+        MOV     r0, r1
+        MOV     r1, r5
+        SWI     OS_WriteN
+        SWI     OS_WriteI + '<'
+        SWI     OS_NewLine
+        MOV     pc, lr
+
+is_boolean
+; 0 or non-zero
+        PrintMessage "Bool: ", 0
+        TEQ     r1, #0
+        ADREQ   r0, false
+        ADRNE   r0, true
+        SWI     OS_Write0
+        SWI     OS_NewLine
+        MOV     pc, lr
+
+false   = "False", 0
+true    = "True", 0
+        ALIGN
+
+is_expression
+; type in 1 byte (which must always be 0)
+; 4 bytes of integer value
+        TEQ     r1, #0
+        BNE     %FT70
+        PrintLine "NULL"
+        MOV     pc, lr
+70
+
+        LDRB    r5, [r1], #1
+        PrintMessage "Type: ", 6
+        PrintInteger r5, 6
+        TEQ     r5, #0
+        BEQ     %FT60
+        PrintLine "Error: Only type 0 expressions supported"
+        MOV     pc, lr
+
+60
+        LDRB    r5, [r1], #1
+        LDRB    r6, [r1], #1
+        ORR     r5, r5, r6, LSL #8
+        LDRB    r6, [r1], #1
+        ORR     r5, r5, r6, LSL #16
+        LDRB    r6, [r1], #1
+        ORR     r5, r5, r6, LSL #24
+        PrintMessage "Value: "
+        PrintHex r5, 10
+        PrintInteger r5
+        SWI     OS_NewLine
+        MOV     pc, lr
+
+80
+        PrintMessage "Error reported: "
+        ADD     r0, r0, #4
+        PrintString r0
+        SWI     XOS_NewLine
+
+90
+        LDMFD   sp!, {pc}
+
+99
+        PrintLine "Syntax: <keywords>:<input string>:<expectation>"
+        PrintLine "Expectation is characters for each argument:"
+        PrintLine "  G  GSTrans'd string (pointer to short length, string)"
+        PrintLine "  E  Evaluate Expression number (pointer to byte 0, 4 byte integer)"
+        PrintLine "  B  Boolean switch (0 or non-0)"
+        PrintLine "  S  String (pointer to 0-terminated string)"
+
+        LDMFD   sp!, {pc}
+
+        LTORG
+
+        END

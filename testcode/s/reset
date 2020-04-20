@@ -1,0 +1,28 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+
+reset   ROUT
+        TEQ     r1, #0
+        LDRNEB  r0, [r1]
+        TEQ     r0, #'O'
+        BEQ     poweroff
+
+        PrintLine "=== Requesting reboot"
+        SWI     OS_Reset            ; Reboot the system
+        PrintLine "ERROR: Returned from OS_Reset"
+        SWI     OS_Exit
+
+andoff
+        = "&OFF"
+
+poweroff
+        PrintLine "=== Requesting power off"
+        LDR     r0, andoff
+        SWI     OS_Reset
+        PrintLine "ERROR: Returned from OS_Reset"
+        SWI     OS_Exit
+
+        END
