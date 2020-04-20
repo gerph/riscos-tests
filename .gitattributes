@@ -1,0 +1,4 @@
+s/* gitlab-language=armasm
+hdr/* gitlab-language=armasm
+**/s/* gitlab-language=armasm
+**/hdr/* gitlab-language=armasm
