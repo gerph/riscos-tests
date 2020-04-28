@@ -1,0 +1,274 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.modhand
+        GET     hdr.printmacros
+        GET     hdr.macros
+
+DANumber_RMA * 0x1
+
+; R1-> module operation to perform
+rma_extend     ROUT
+
+        LDRB    r0, [r1], #1
+        TEQ     r0, #'e'
+        BEQ     extend
+        TEQ     r0, #'r'
+        BEQ     reduce
+        TEQ     r0, #'0'
+        BEQ     reduce_to_zero
+        TEQ     r0, #'-'
+        BEQ     reduce_to_negative
+        TEQ     r0, #'m'
+        BEQ     extend_massively
+
+; invalid extension tests from the free code
+        TEQ     r0, #'b'
+        BEQ     extend_before
+        TEQ     r0, #'a'
+        BEQ     extend_after
+        TEQ     r0, #'h'
+        BEQ     extend_header
+        TEQ     r0, #'s'
+        BEQ     extend_start
+        TEQ     r0, #'u'
+        BEQ     extend_unaligned
+
+        PrintLine "Syntax: rma_extend e|r|0|-|m|b|a|h|s|u"
+        MOV     pc, lr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+extend SIGNATURE
+        PrintLine "Extend a block"
+
+        PrintLine "(claim)"
+        XSWI    OS_Module, #ModHandReason_Claim,,, #64
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        LDR     r4, [r2, #-4]
+        PrintMessage "Actual size:", 15
+        PrintHex r4
+        SWI     OS_NewLine
+
+        PrintLine "(extend)"
+        XSWI    OS_Module, #ModHandReason_ExtendBlock,,, #16
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        LDR     r4, [r2, #-4]
+        PrintMessage "Actual size:", 15
+        PrintHex r4
+        SWI     OS_NewLine
+
+        MOV     pc, lr
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+extend_massively SIGNATURE
+        PrintLine "Extend a block massively"
+
+        PrintLine "(claim)"
+        XSWI    OS_Module, #ModHandReason_Claim,,, #64
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        LDR     r4, [r2, #-4]
+        PrintMessage "Actual size:", 15
+        PrintHex r4
+        SWI     OS_NewLine
+
+        PrintLine "(extend)"
+; 160MB should be enough for anyone
+        XSWI    OS_Module, #ModHandReason_ExtendBlock,,, #160 * 1024 * 1024
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        LDR     r4, [r2, #-4]
+        PrintMessage "Actual size:", 15
+        PrintHex r4
+        SWI     OS_NewLine
+
+        MOV     pc, lr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+reduce SIGNATURE
+        PrintLine "Reduce a block"
+
+        PrintLine "(claim)"
+        XSWI    OS_Module, #ModHandReason_Claim,,, #64
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        LDR     r4, [r2, #-4]
+        PrintMessage "Actual size:", 15
+        PrintHex r4
+        SWI     OS_NewLine
+
+        PrintLine "(reduce)"
+        XSWI    OS_Module, #ModHandReason_ExtendBlock,,, #-16
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        LDR     r4, [r2, #-4]
+        PrintMessage "Actual size:", 15
+        PrintHex r4
+        SWI     OS_NewLine
+
+        MOV     pc, lr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+reduce_to_zero SIGNATURE
+        PrintLine "Reduce a block to 0"
+
+        PrintLine "(claim)"
+        XSWI    OS_Module, #ModHandReason_Claim,,, #64
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        LDR     r4, [r2, #-4]
+        PrintMessage "Actual size:", 15
+        PrintHex r4
+        SWI     OS_NewLine
+
+        PrintLine "(reduce)"
+        SUB     r4, r4, #4
+        RSB     r4, r4, #0
+        XSWI    OS_Module, #ModHandReason_ExtendBlock,,, r4
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        CMP     r2, #-1
+        BEQ     %FT20                                       ; Classic RISC OS returns -1 for resize to nothing
+        LDR     r4, [r2, #-4]
+        PrintMessage "Actual size:", 15
+        PrintHex r4
+        SWI     OS_NewLine
+20
+
+        MOV     pc, lr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+reduce_to_negative SIGNATURE
+        PrintLine "Reduce a block to negative"
+
+        PrintLine "(claim)"
+        XSWI    OS_Module, #ModHandReason_Claim,,, #64
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        LDR     r4, [r2, #-4]
+        PrintMessage "Actual size:", 15
+        PrintHex r4
+        SWI     OS_NewLine
+
+        PrintLine "(reduce)"
+        RSB     r4, r4, #0
+        XSWI    OS_Module, #ModHandReason_ExtendBlock,,, r4
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        CMP     r2, #-1
+        BEQ     %FT20                                       ; Classic RISC OS returns -1 for resize to nothing
+        LDR     r4, [r2, #-4]
+        PrintMessage "Actual size:", 15
+        PrintHex r4
+        SWI     OS_NewLine
+20
+
+        MOV     pc, lr
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+extend_before SIGNATURE
+        PrintLine "Extend an address before the heap"
+
+        ; Get the RMA location
+        XSWI    OS_ReadDynamicArea, #128+DANumber_RMA
+
+        SUB     r2, r0, #4
+        XSWI    OS_Module, #ModHandReason_ExtendBlock
+        PrintLine "Extended (should never be reached)"
+
+        MOV     pc, lr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+extend_after SIGNATURE
+        PrintLine "Extend an address after the heap"
+
+        ; Get the RMA location
+        XSWI    OS_ReadDynamicArea, #128+DANumber_RMA
+
+        ; free the end of the heap
+        ADD     r2, r0, r1
+        XSWI    OS_Module, #ModHandReason_ExtendBlock
+        PrintLine "Extended (should never be reached)"
+
+        MOV     pc, lr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+extend_header SIGNATURE
+        PrintLine "Extend an address in the header"
+
+        ; Get the RMA location
+        XSWI    OS_ReadDynamicArea, #128+DANumber_RMA
+
+        ; free the header + 4
+        ADD     r2, r0, #4
+        XSWI    OS_Module, #ModHandReason_ExtendBlock
+        PrintLine "Extended (should never be reached)"
+
+        MOV     pc, lr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+extend_start SIGNATURE
+        PrintLine "Extend the base of the RMA"
+
+        ; Get the RMA location
+        XSWI    OS_ReadDynamicArea, #128+DANumber_RMA
+
+        ; free the base of the area
+        MOV     r2, r0
+        XSWI    OS_Module, #ModHandReason_ExtendBlock
+        PrintLine "Extended (should never be reached)"
+
+        MOV     pc, lr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+extend_unaligned SIGNATURE
+        PrintLine "Extend an unaligned address in the RMA"
+
+        ; Get the RMA location
+        XSWI    OS_ReadDynamicArea, #128+DANumber_RMA
+
+        ; Locate the middle of the heap
+        ADD     r2, r0, r1, LSR #1
+        ; set an unaligned bit
+        ORR     r2, r2, #1
+        XSWI    OS_Module, #ModHandReason_ExtendBlock
+        PrintLine "Extended (should never be reached)"
+
+        MOV     pc, lr
+
+        END

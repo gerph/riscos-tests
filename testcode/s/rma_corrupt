@@ -1,0 +1,141 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.modhand
+        GET     hdr.printmacros
+        GET     hdr.macros
+
+DANumber_RMA * 0x1
+
+; R1-> module operation to perform
+rma_corrupt     ROUT
+
+        LDRB    r0, [r1], #1
+        TEQ     r0, #'h'
+        BEQ     header
+        TEQ     r0, #'0'
+        TEQNE   r0, #'1'
+        TEQNE   r0, #'2'
+        TEQNE   r0, #'3'
+        BEQ     start
+        PrintLine "Syntax: rma_corrupt h[4u-0]|[0-3][4u-0]"
+        MOV     pc, lr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+header SIGNATURE
+        Push    "lr"
+        PrintLine "Corrupt the claimed block's header"
+        LDRB    r5, [r1], #1
+        XSWI    OS_Module, #ModHandReason_Claim,,, #16
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        SUB     r1, r2, #4                  ; where to corrupt
+        BL      do_corruption
+
+        XSWI    OS_Module, #ModHandReason_Free
+        PrintLine "Freed"
+
+        Pull    "pc"
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+start SIGNATURE
+        Push    "lr"
+        PrintLine "Corrupt the start of the heap"
+        SUB     r6, r0, #'0'
+        CMP     r6, #3
+        BHI     %FT99
+
+        LDRB    r5, [r1], #1                ; how to corrupt
+
+        ; Get the RMA location
+        XSWI    OS_ReadDynamicArea, #128+DANumber_RMA
+        MOV     r7, r0                      ; base address
+
+        XSWI    OS_Module, #ModHandReason_Claim,,, #16
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        ADD     r1, r7, r6, LSL #2          ; where to corrupt (base + offset in words)
+        BL      do_corruption
+
+        XSWI    OS_Module, #ModHandReason_Free
+        PrintLine "Freed"
+
+        Pull    "pc"
+
+
+99
+        PrintLine "Bad offset for start?!"
+        Pull    "pc"
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; r5 = type of corruption (4u-0)
+; r1-> where to corrupt
+do_corruption SIGNATURE
+        Push    "lr"
+
+; decide how to corrupt
+        ADR     r14, %FT40
+        TEQ     r5, #'4'
+        BEQ     corrupt_add4
+        TEQ     r5, #'u'
+        BEQ     corrupt_unalign
+        TEQ     r5, #'-'
+        BEQ     corrupt_negative
+        TEQ     r5, #'0'
+        BEQ     corrupt_zero
+
+        ADR     r0, warn_no_corruption
+40
+        SWI     OS_Write0
+        SWI     OS_NewLine
+        Pull    "pc"
+corrupt_add4
+        LDR     r0, [r1]
+        ADD     r0, r0, #4
+        STR     r0, [r1]
+        ADR     r0, msg_corrupt_add4
+        MOV     pc, lr
+
+corrupt_unalign
+        LDR     r0, [r1]
+        ORR     r0, r0, #1
+        STR     r0, [r1]
+        ADR     r0, msg_corrupt_unalign
+        MOV     pc, lr
+
+corrupt_negative
+        LDR     r0, [r1]
+        RSBS    r0, r0, #0
+        MOVEQ   r0, #-1                     ; ensure it's negative if it was 0
+        STR     r0, [r1]
+        ADR     r0, msg_corrupt_negative
+        MOV     pc, lr
+
+corrupt_zero
+        LDR     r0, [r1]
+        MOV     r0, #0
+        STR     r0, [r1]
+        ADR     r0, msg_corrupt_zero
+        MOV     pc, lr
+
+warn_no_corruption
+        = "Warning: No corruption. Use suffixes: 4, u, -, 0", 0
+msg_corrupt_add4
+        = "Corrupt: Add 4", 0
+msg_corrupt_unalign
+        = "Corrupt: Make unaligned", 0
+msg_corrupt_negative
+        = "Corrupt: Make negative", 0
+msg_corrupt_zero
+        = "Corrupt: Make zero", 0
+
+
+        END

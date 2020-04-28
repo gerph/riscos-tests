@@ -1,0 +1,99 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.modhand
+        GET     hdr.printmacros
+        GET     hdr.macros
+
+DANumber_RMA * 0x1
+
+; R1-> module operation to perform
+rma_free     ROUT
+
+        LDRB    r0, [r1], #1
+        TEQ     r0, #'b'
+        BEQ     free_before
+        TEQ     r0, #'a'
+        BEQ     free_after
+        TEQ     r0, #'h'
+        BEQ     free_header
+        TEQ     r0, #'s'
+        BEQ     free_start
+        TEQ     r0, #'u'
+        BEQ     free_unaligned
+        PrintLine "Syntax: rma_free b|a|h|s|u"
+        MOV     pc, lr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+free_before SIGNATURE
+        PrintLine "Free an address before the heap"
+
+        ; Get the RMA location
+        XSWI    OS_ReadDynamicArea, #128+DANumber_RMA
+
+        SUB     r2, r0, #4
+        XSWI    OS_Module, #ModHandReason_Free
+        PrintLine "Freed (should never be reached)"
+
+        MOV     pc, lr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+free_after SIGNATURE
+        PrintLine "Free an address after the heap"
+
+        ; Get the RMA location
+        XSWI    OS_ReadDynamicArea, #128+DANumber_RMA
+
+        ; free the end of the heap
+        ADD     r2, r0, r1
+        XSWI    OS_Module, #ModHandReason_Free
+        PrintLine "Freed (should never be reached)"
+
+        MOV     pc, lr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+free_header SIGNATURE
+        PrintLine "Free an address in the header"
+
+        ; Get the RMA location
+        XSWI    OS_ReadDynamicArea, #128+DANumber_RMA
+
+        ; free the header + 4
+        ADD     r2, r0, #4
+        XSWI    OS_Module, #ModHandReason_Free
+        PrintLine "Freed (should never be reached)"
+
+        MOV     pc, lr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+free_start SIGNATURE
+        PrintLine "Free the base of the RMA"
+
+        ; Get the RMA location
+        XSWI    OS_ReadDynamicArea, #128+DANumber_RMA
+
+        ; free the base of the area
+        MOV     r2, r0
+        XSWI    OS_Module, #ModHandReason_Free
+        PrintLine "Freed (should never be reached)"
+
+        MOV     pc, lr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+free_unaligned SIGNATURE
+        PrintLine "Free an unaligned address in the RMA"
+
+        ; Get the RMA location
+        XSWI    OS_ReadDynamicArea, #128+DANumber_RMA
+
+        ; Locate the middle of the heap
+        ADD     r2, r0, r1, LSR #1
+        ; set an unaligned bit
+        ORR     r2, r2, #1
+        XSWI    OS_Module, #ModHandReason_Free
+        PrintLine "Freed (should never be reached)"
+
+        MOV     pc, lr
+
+        END

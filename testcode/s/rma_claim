@@ -1,0 +1,221 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.modhand
+        GET     hdr.printmacros
+        GET     hdr.macros
+
+; R1-> module operation to perform
+rma_claim     ROUT
+
+        LDRB    r0, [r1], #1
+        TEQ     r0, #'c'
+        BEQ     claim
+        TEQ     r0, #'0'
+        BEQ     claim_zero
+        TEQ     r0, #'f'
+        BEQ     claim_free
+        TEQ     r0, #'2'
+        BEQ     claim_free_twice
+        TEQ     r0, #'i'
+        BEQ     claim_free_inside
+        TEQ     r0, #'s'
+        BEQ     claim_free_inside_with_size
+        TEQ     r0, #'r'
+        BEQ     claim_free_claim
+        TEQ     r0, #'g'
+        BEQ     claim_claim_free_claim_greater
+        TEQ     r0, #'l'
+        BEQ     claim_claim_free_claim_lesser
+        PrintLine "Syntax: rma_claim c|f|2|i|s|r|g|l"
+        MOV     pc, lr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+claim SIGNATURE
+        PrintLine "Claim a block"
+        XSWI    OS_Module, #ModHandReason_Claim,,, #16
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        MOV     pc, lr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+claim_zero SIGNATURE
+        PrintLine "Claim a zero-sized block"
+        XSWI    OS_Module, #ModHandReason_Claim,,, #0
+        ; Apparently this allocates the smallest block available in RISC OS Classic.
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        MOV     pc, lr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+claim_free SIGNATURE
+        PrintLine "Claim a block then free"
+        XSWI    OS_Module, #ModHandReason_Claim,,, #16
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        XSWI    OS_Module, #ModHandReason_Free
+        PrintLine "Freed"
+
+        MOV     pc, lr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+claim_free_claim SIGNATURE
+        PrintLine "Claim a block, free, then claim again"
+        XSWI    OS_Module, #ModHandReason_Claim,,, #16
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+        MOV     r5, r2
+
+        XSWI    OS_Module, #ModHandReason_Free
+        PrintLine "Freed"
+
+        XSWI    OS_Module, #ModHandReason_Claim,,, #16
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        TEQ     r2, r5
+        ADREQ   r0, got_expected_block
+        ADRNE   r0, got_unexpected_block
+        SWI     OS_Write0
+        SWI     OS_NewLine
+
+        MOV     pc, lr
+
+got_expected_block
+        = "Got the block we expected", 0
+got_unexpected_block
+        = "Warning: Got an unexpected block", 0
+        ALIGN
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+claim_claim_free_claim_lesser SIGNATURE
+        PrintLine "Claim a block, Claim 2nd, free 1st, then claim smaller"
+        XSWI    OS_Module, #ModHandReason_Claim,,, #64
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+        MOV     r5, r2
+
+        PrintLine "Claim second"
+        XSWI    OS_Module, #ModHandReason_Claim,,, #64
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        XSWI    OS_Module, #ModHandReason_Free,, r5
+        PrintLine "Freed 1st"
+
+        XSWI    OS_Module, #ModHandReason_Claim,,, #32
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        TEQ     r2, r5
+        ADREQL  r0, got_expected_block
+        ADRNEL  r0, got_unexpected_block
+        SWI     OS_Write0
+        SWI     OS_NewLine
+
+        MOV     pc, lr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+claim_claim_free_claim_greater SIGNATURE
+        PrintLine "Claim a block, Claim 2nd, free 1st, then claim greater"
+        XSWI    OS_Module, #ModHandReason_Claim,,, #64
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+        MOV     r5, r2
+
+        PrintLine "Claim second"
+        XSWI    OS_Module, #ModHandReason_Claim,,, #64
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        XSWI    OS_Module, #ModHandReason_Free,, r5
+        PrintLine "Freed 1st"
+
+        XSWI    OS_Module, #ModHandReason_Claim,,, #96
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        MOV     pc, lr
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+claim_free_twice SIGNATURE
+        PrintLine "Claim a block then free twice"
+        XSWI    OS_Module, #ModHandReason_Claim,,, #16
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        MOV     r5, r2
+        XSWI    OS_Module, #ModHandReason_Free
+        PrintLine "Freed"
+
+        XSWI    OS_Module, #ModHandReason_Free,,r5
+        PrintLine "Freed a second time (should not be reached)"
+
+        MOV     pc, lr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+claim_free_inside SIGNATURE
+        PrintLine "Claim a block then free inside a block"
+        XSWI    OS_Module, #ModHandReason_Claim,,, #16
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        ADD     r2, r2, #4
+        XSWI    OS_Module, #ModHandReason_Free
+        PrintLine "Freed"
+
+        MOV     pc, lr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+claim_free_inside_with_size SIGNATURE
+; Intended to make it look like the block is sensible by having a preceding value
+; that is a size that is plausible.
+        PrintLine "Claim a block then free inside a block where size looks sensible"
+        XSWI    OS_Module, #ModHandReason_Claim,,, #64
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        LDR     r0, [r2, #-4]
+        SUB     r0, r0, #32 + 4         ; so that the 'next' block buts the free block
+        STR     r0, [r2, #32]           ; make it look like the 'next' block is valid
+        MOV     r0, #32
+        STR     r0, [r2], #4            ; make it look like our freed block is 32bytes (and move to use it)
+        XSWI    OS_Module, #ModHandReason_Free
+        PrintLine "Freed"
+
+        MOV     pc, lr
+
+        END
