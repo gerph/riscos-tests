@@ -1,0 +1,67 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+
+buffer_size * 16
+
+read_line      ROUT
+        SWI     OS_WriteS
+        = "Input: ",0
+        ALIGN
+
+        ADR     r0, buffer
+        MOV     r1, #buffer_size
+        MOV     r2, #' '
+        MOV     r3, #127
+        SWI     OS_ReadLine
+
+        MOVCS   r4, #1              ; Escape pressed
+        MOVCC   r4, #0
+
+        ADR     r0, buffer
+        LDRB    r3, [r0, r1]        ; preserve the terminating character
+        MOV     r2, #0
+        STRB    r2, [r0, r1]
+
+        ADR     r0, message
+        SWI     OS_Write0
+
+        ADR     r0, buffer
+        SWI     OS_Write0
+
+        ADR     r0, end
+        SWI     OS_Write0
+
+        CMP     r3, #32
+        BGE     %FT20
+        SWI     OS_WriteI + '^'
+        ADD     r3, r3, #64
+
+20
+        MOV     r0, r3
+        SWI     OS_WriteC
+
+        SWI     OS_NewLine
+
+        TEQ     r4, #1
+        BNE     %FT90
+        ADR     r0, escape
+        SWI     OS_Write0
+        SWI     OS_NewLine
+
+90
+        MOV     pc, lr
+
+message
+        = "You said: <", 0
+end
+        = "> terminating char: ", 0
+
+escape
+        = "Escape" ,0
+
+buffer
+        %       buffer_size
+
+        END

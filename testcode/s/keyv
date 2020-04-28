@@ -1,0 +1,70 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.macros
+
+; vector
+KeyV * &13
+
+; reasons
+KeyV_Released * 1
+KeyV_Pressed * 2
+
+; codes
+KeyV_LShift * 76
+KeyV_P * 48
+
+
+insert_keyv      ROUT
+        Push    "lr"
+        MOV     r10, r1
+10
+        ADR     lr, %BT10
+        LDRB    r0, [r10], #1
+        TEQ     r0, #'s'
+        BEQ     press_lshift
+        TEQ     r0, #'p'
+        BEQ     press_p
+        CMP     r0, #32
+        BLS     readc
+
+
+readc SIGNATURE
+        MOV     r0, #65
+        SUBS    r0, r0, #1              ; set the carry flag
+        SWI     OS_ReadC
+        BCC     %FT10
+        SWI     OS_WriteS
+        =       "Carry set on exit (means an escape condition)", 0
+        SWI     OS_NewLine
+10
+        MOV     r1, r0
+
+        ADR     r0, message
+        SWI     OS_Write0
+
+        MOV     r0, r1
+        SWI     OS_WriteC
+        SWI     OS_NewLine
+        Pull    "pc"
+
+message
+        = "You pressed ", 0
+        ALIGN
+
+press_p SIGNATURE
+        MOV     r0, #KeyV_P
+        B       press
+press_lshift SIGNATURE
+        MOV     r0, #KeyV_LShift
+        B       press
+
+press SIGNATURE
+        MOV     r1, r0
+        MOV     r0, #KeyV_Pressed
+        MOV     r9, #KeyV
+        SWI     OS_CallAVector
+        MOV     pc, lr
+
+        END
