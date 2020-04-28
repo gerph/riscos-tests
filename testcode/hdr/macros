@@ -116,5 +116,21 @@ arg     SETS    "$p" :RIGHT: ((:LEN: "$p") - 1)
         SWI     $swi
         MEND
 
+
+        MACRO
+        XBL     $label, $p0, $p1, $p2, $p3, $p4, $p5, $p6, $p7, $p8, $p9
+        XSWI_param r0, $p0
+        XSWI_param r1, $p1
+        XSWI_param r2, $p2
+        XSWI_param r3, $p3
+        XSWI_param r4, $p4
+        XSWI_param r5, $p5
+        XSWI_param r6, $p6
+        XSWI_param r7, $p7
+        XSWI_param r8, $p8
+        XSWI_param r9, $p9
+        BL      $label
+        MEND
+
 ; -------------------------------------------------
         END

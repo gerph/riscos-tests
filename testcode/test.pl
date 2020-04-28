@@ -562,7 +562,7 @@ sub setup_variables
 
     $vars->{'TOOL'} = $testtool;
     $vars->{'FILE'} = $test->{'file'} || '';
-    $vars->{'ARGS'} = $test->{'args'} || '';
+    $vars->{'ARGS'} = defined($test->{'args'}) ? $test->{'args'} : '';
     my @args = split / +/, $vars->{'ARGS'};
     my $argn = 1;
     for $arg (0..9)
