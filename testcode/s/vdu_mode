@@ -1,0 +1,169 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+        GET     hdr.macros
+
+                            ^ 0
+ModeVariable_ModeFlags      # 1
+ModeVariable_ScrRCol        # 1
+ModeVariable_ScrBRow        # 1
+ModeVariable_NColour        # 1
+ModeVariable_XEigFactor     # 1
+ModeVariable_YEigFactor     # 1
+ModeVariable_LineLength     # 1
+ModeVariable_ScreenSize     # 1
+ModeVariable_YShftFactor    # 1
+ModeVariable_Log2BPP        # 1
+ModeVariable_Log2BPC        # 1
+ModeVariable_XWindLimit     # 1
+ModeVariable_YWindLimit     # 1
+
+
+MaxMode * 50
+
+vdu_mode     ROUT
+        Push    "r1, lr"
+
+        PrintLine "--- ReadModeVariables"
+
+; Headings
+        PrintMessage "M#", 4
+        PrintMessage "V?", 3
+        PrintMessage "Flags", 21
+        PrintMessage "TW", 6
+        PrintMessage "TH", 5
+        PrintMessage "Cols", 6
+        PrintMessage "Xe", 4
+        PrintMessage "Ye", 3
+        PrintMessage "Line", 6
+        PrintMessage "Memory", 8
+        PrintMessage "BPP", 4
+        PrintMessage "BPC", 4
+        PrintMessage "GW", 6
+        PrintMessage "GH", 6
+        SWI     XOS_NewLine
+
+        MOV     r9, #0
+10
+        BL      show_mode_variables
+        ADD     r9, r9, #1
+        CMP     r9, #MaxMode
+        BLE     %BT10
+
+; Now test what happens if we read an invalid variable
+        XSWI    XOS_ReadModeVariable, 64
+        ADRVC   r0, badvar_ok
+        ADRVS   r0, badvar_bad
+        SWI     XOS_Write0
+        SWI     XOS_NewLine
+
+        Pull    "r1, pc"
+
+badvar_ok
+        = "Reading an invalid variable was ok", 0
+badvar_bad
+        = "Error: Reading an invalid variable didn't generate an error", 0
+        ALIGN
+
+
+        MACRO
+$label  PrintBitChar $reg, $bit, $onchar
+$label  TST     $reg, #1<<$bit
+        MOVNE   r0, #$onchar
+        MOVEQ   r0, #' '
+        SWI     XOS_WriteC
+        MEND
+
+        MACRO
+$label  PrintModeVariable $var, $size
+$label  XSWI    XOS_ReadModeVariable, r9, $var
+        PrintInteger r2, $size
+        MEND
+
+show_mode_variables SIGNATURE
+        Push    "r1, lr"
+
+        PrintInteger r9, 4
+
+; Check Mode Valid
+        XSWI    XOS_CheckModeValid, r9
+        MOVCC   r0, #'V'                        ; Valid mode
+        MOVCS   r0, #'x'                        ; invalid mode
+        MOVVS   r0, #'E'                        ; CheckModeValid reported an error?!
+        SWI     XOS_WriteC
+        SWI     XOS_WriteI + ' '
+        SWI     XOS_WriteI + ' '
+
+; Now read the variables
+        XSWI    XOS_ReadModeVariable, r9, ModeVariable_ModeFlags
+        BVS     %FT90
+        PrintHex r2, 10
+
+        PrintBitChar r2, 0, 'G'                 ; Graphics mode
+        PrintBitChar r2, 1, 'T'                 ; Teletext mode
+        PrintBitChar r2, 2, 'g'                 ; Gap mode
+        PrintBitChar r2, 3, 'B'                 ; BBC Gap mode
+        PrintBitChar r2, 4, 'H'                 ; Hires mono
+        PrintBitChar r2, 5, 'D'                 ; Double height characters
+        PrintBitChar r2, 6, 'w'                 ; No hardware scroll
+        PrintBitChar r2, 7, 'F'                 ; Full paletted (not 256 colour)
+        PrintBitChar r2, 8, 'i'                 ; Interlaced
+        PrintBitChar r2, 9, 's'                 ; Grayscale palette
+        ; Note: Format is in bits 12-15, FIXME
+
+        SWI     XOS_WriteI + ' '
+
+        PrintModeVariable ModeVariable_ScrRCol, 4
+        SWI     XOS_WriteI + 'x'
+        SWI     XOS_WriteI + ' '
+        PrintModeVariable ModeVariable_ScrBRow, 5
+
+; colours
+        XSWI    XOS_ReadModeVariable, r9, ModeVariable_NColour
+        ADD     r2, r2, #1
+        MOV     r3, r2
+        MOV     r4, #' '
+        TEQ     r3, #0
+        MOVEQ   r2, #4
+        MOVEQ   r4, #'B'
+        TEQ     r3, #1<<24
+        MOVEQ   r2, #16
+        MOVEQ   r4, #'M'
+        TEQ     r3, #1<<15
+        MOVEQ   r2, #32
+        MOVEQ   r4, #'K'
+        PrintInteger r2, 3
+        XSWI    XOS_WriteC, r4
+
+        SWI     XOS_WriteI + ' '
+        SWI     XOS_WriteI + ' '
+
+; eigenfactors
+        PrintModeVariable ModeVariable_XEigFactor, 2
+        SWI     XOS_WriteI + 'x'
+        SWI     XOS_WriteI + ' '
+        PrintModeVariable ModeVariable_YEigFactor, 3
+
+        PrintModeVariable ModeVariable_LineLength, 6
+        PrintModeVariable ModeVariable_ScreenSize, 8
+
+        PrintModeVariable ModeVariable_Log2BPP, 4
+        PrintModeVariable ModeVariable_Log2BPC, 4
+
+        PrintModeVariable ModeVariable_XWindLimit, 5
+        SWI     XOS_WriteI + 'x'
+        SWI     XOS_WriteI + ' '
+        PrintModeVariable ModeVariable_YWindLimit, 5
+
+        SWI     XOS_NewLine
+
+        Pull    "r1, pc"
+
+90
+        PrintLine "Invalid"
+        Pull    "r1, pc"
+
+
+        END
