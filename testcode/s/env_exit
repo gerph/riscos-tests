@@ -1,0 +1,121 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+        GET     hdr.macros
+        GET     hdr.envnumbers
+
+
+env_exit  ROUT
+        Push    "lr"
+        STR     r12, my_r12
+
+        PrintLine "Read old Exit handler"
+
+        XSWI    OS_ChangeEnvironment, #ExitHandler, 0, 0, 0
+        STR     r1, old_handler
+        STR     r2, old_handlerws
+        STR     r3, old_buffer
+
+        BL      print_handler
+
+        PrintLine "Set exit handler"
+        XSWI    OS_ChangeEnvironment, #ExitHandler, ^myhandler, #&77, #&95
+        BL      print_handler
+
+        PrintLine "Read the current handler"
+
+        XSWI    OS_ChangeEnvironment, #ExitHandler, 0, 0, 0
+        BL      print_handler
+
+        SWI     OS_Exit
+
+        PrintLine "ERROR: OS_Exit returned?!"
+        Pull    "pc"
+
+
+myhandler SIGNATURE
+        ADRL    sp, small_stack
+        MOV     r0, r12
+        LDR     r12, my_r12
+        TEQ     r12, #0
+        BNE     %FT10
+; have been reentered
+        SWI     OS_WriteS
+        = "My exit handler was reentered. Aborting now.",0
+        SWI     OS_NewLine
+        MOV     r0, #&8800000
+        LDR     r0, [r0]                    ; hopefully memory that does not exist
+
+10
+        PrintLine "Entered my exit handler"
+        MRS     r1, CPSR                    ; should be user mode at this point
+        PrintMessage "CPSR:", 12
+        PrintHex r1
+
+        SWI     OS_NewLine
+        PrintMessage "R12:", 12
+        PrintHex r0
+        SWI     OS_NewLine
+        SWI     OS_NewLine
+
+        PrintLine "Restoring original exit handler"
+
+        LDR     r1, old_handler
+        LDR     r2, old_handlerws
+        LDR     r3, old_buffer
+        XSWI    OS_ChangeEnvironment, #ExitHandler
+
+        BL      print_handler
+
+        MOV     r0, #0
+        STR     r0, my_r12                  ; flag that we're now done with this exit handler
+                                            ; if we're called again, we'll intentionally
+                                            ; access invalid memory and hope that the abort
+                                            ; exits us more cleanly.
+
+        PrintLine "OS_Exit should exit our application"
+
+        SWI     OS_Exit
+        PrintLine "OS_Exit didn't exit. Aborting now."
+        MOV     r0, #&8800000
+        LDR     r0, [r0]                    ; hopefully memory that does not exist
+
+
+print_handler SIGNATURE
+        Push    "lr"
+        PrintMessage "Handler:", 12
+        PrintHex r1
+        SWI     OS_NewLine
+
+        PrintMessage "Workspace:", 12
+        PrintHex r2
+        SWI     OS_NewLine
+
+        PrintMessage "Buffer:", 12
+        PrintHex r3
+        SWI     OS_NewLine
+
+        SWI     OS_NewLine
+        Pull    "pc"
+
+
+
+
+
+; data
+old_handler
+        DCD     0
+old_handlerws
+        DCD     0
+old_buffer
+        DCD     0
+my_r12
+        DCD     0
+
+small_stack_base
+        %       256
+small_stack
+
+        END
