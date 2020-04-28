@@ -1,0 +1,61 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+        GET     hdr.macros
+
+EventV * 0x10
+Event_User * 0x9
+OSByte_DisableEvent * 0xD
+OSByte_EnableEvent * 0xE
+
+event   Push    "r0, lr"
+        PrintLine "Claiming vector"
+        XSWI    OS_Claim, EventV, ^eventv, r12
+
+        PrintLine "Generate user event (should be no eventv call)"
+        XSWI    OS_GenerateEvent, Event_User
+        PrintLine "Generate user event (should be no eventv call)"
+        XSWI    OS_GenerateEvent, Event_User
+
+        PrintLine "Enable event"
+        XSWI    OS_Byte, OSByte_EnableEvent, Event_User
+        PrintLine "Generate user event (expect eventv call)"
+        XSWI    OS_GenerateEvent, Event_User
+
+        PrintLine "Disable event"
+        XSWI    OS_Byte, OSByte_DisableEvent, Event_User
+        PrintLine "Generate user event (should be no eventv call)"
+        XSWI    OS_GenerateEvent, Event_User
+
+        PrintLine "Enable event"
+        XSWI    OS_Byte, OSByte_EnableEvent, Event_User
+        PrintLine "Generate user event (expect eventv call)"
+        XSWI    OS_GenerateEvent, Event_User
+        PrintLine "Enable event (2nd time)"
+        XSWI    OS_Byte, OSByte_EnableEvent, Event_User
+        PrintLine "Generate user event (expect eventv call)"
+        XSWI    OS_GenerateEvent, Event_User
+
+        PrintLine "Disable event (1 left)"
+        XSWI    OS_Byte, OSByte_DisableEvent, Event_User
+        PrintLine "Generate user event (expect eventv call)"
+        XSWI    OS_GenerateEvent, Event_User
+        PrintLine "Disable event (really disabled)"
+        XSWI    OS_Byte, OSByte_DisableEvent, Event_User
+        PrintLine "Generate user event (should be no eventv call)"
+        XSWI    OS_GenerateEvent, Event_User
+
+        PrintLine "Releasing vector"
+        XSWI    OS_Release, EventV, ^eventv, r12
+
+        PrintLine "Test complete"
+        Pull    "r0, pc"
+
+
+eventv  Push    "r0, lr"
+        PrintLine "EventV called"
+        Pull    "r0, pc"
+
+        END
