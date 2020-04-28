@@ -1,0 +1,55 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+        GET     hdr.macros
+
+OSMemoryReason_Amounts * 8
+
+OSMemoryReason_Amounts_DRAM * 0x100
+OSMemoryReason_Amounts_VRAM * 0x200
+OSMemoryReason_Amounts_ROM * 0x300
+OSMemoryReason_Amounts_IOSpace * 0x400
+OSMemoryReason_Amounts_SoftROM * 0x500
+
+
+memoryinfo     ROUT
+        LDRB    r0, [r1], #1
+        TEQ     r0, #'a'
+        BEQ     memory_amounts
+
+        PrintLine "Syntax: memoryinfo [a]"
+        SWI     XOS_Exit
+
+
+memory_amounts SIGNATURE
+        PrintLine "Amount of memory:"
+
+        MACRO
+        ShowMemory $type
+        LDR     r0, =$type + OSMemoryReason_Amounts
+        XSWI    OS_Memory
+        MUL     r3, r1, r2
+
+        PrintMessage " #"
+        MOV     r0, r0, LSR #8
+        PrintInteger r0, 3
+        PrintMessage "$type", 34
+        PrintInteger r1, 4
+        PrintMessage " pages, "
+        MOV     r3, r3, LSR #10
+        PrintInteger r3, 5
+        PrintMessage " K"
+        SWI     OS_NewLine
+        MEND
+
+        ShowMemory OSMemoryReason_Amounts_DRAM
+        ShowMemory OSMemoryReason_Amounts_VRAM
+        ShowMemory OSMemoryReason_Amounts_ROM
+        ShowMemory OSMemoryReason_Amounts_IOSpace
+        ShowMemory OSMemoryReason_Amounts_SoftROM
+
+        MOV     pc, lr
+
+        END
