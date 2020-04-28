@@ -1,0 +1,31 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+
+osbyte  ROUT
+        MOV     r0, #0
+        MOV     r1, #1
+        SWI     OS_Byte
+
+        SWI     OS_WriteS
+        = "OS_Byte 0,1 returned: ", 0
+        ALIGN
+        MOV     r0, r1
+        MOV     r1, r12
+        MOV     r2, #20
+        SWI     OS_ConvertCardinal4
+        SWI     OS_Write0
+        SWI     OS_NewLine
+
+        MOV     r0, #0
+        MOV     r1, #0
+        SWI     OS_Byte
+
+; Should never reach here
+        SWI     OS_WriteS
+        = "Should never reach here",0
+        SWI     OS_NewLine
+        MOV     pc, lr
+
+        END
