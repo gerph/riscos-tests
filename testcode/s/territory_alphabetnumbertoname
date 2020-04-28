@@ -1,0 +1,63 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+        GET     hdr.macros
+
+
+territory_alphabetnumbertoname
+        Push    "lr"
+        LDRB    r0, [r1]
+        CMP     r0, #32
+        BLO     test_many
+
+        XSWI    OS_ReadUnsigned, 10         ; convert string in r1 to number in r2
+
+        BL      test_alphabet
+        SWIVS   OS_GenerateError
+
+        Pull    "pc"
+
+test_many SIGNATURE
+        Push    "lr"
+        XBL     test_alphabet,,, 100
+        XBL     test_alphabet,,, 101
+        XBL     test_alphabet,,, 102
+        XBL     test_alphabet,,, 113
+        XBL     test_alphabet,,, 120
+        XBL     test_alphabet,,, 42
+
+        PrintLine "Testing alphabets complete"
+        Pull    "pc"
+
+test_alphabet SIGNATURE
+        Push    "lr"
+
+        PrintMessage "Alphabet number to name: "
+        PrintInteger r2
+        SWI     OS_NewLine
+
+        XSWI    XTerritory_AlphabetNumberToName,r2,r12,256
+        BVC     %FT20
+        Push    "r0"
+        PrintMessage "Got error: "
+        ADD     r0, r0, #4
+        SWI     OS_Write0
+        SWI     OS_NewLine
+        SWI     OS_NewLine
+        Pull    "r0"
+        SETV
+        Pull    "pc"
+
+20
+        PrintMessage "Got name: "
+        PrintString r1
+        SWI     OS_NewLine
+        SWI     OS_NewLine
+
+        Pull    "pc"
+
+        LTORG
+
+        END
