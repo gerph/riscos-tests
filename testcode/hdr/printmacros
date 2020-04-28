@@ -88,11 +88,13 @@ printbuffersize * 20
 ; -------------------------------------------------------------------------
         MACRO
         PrintString     $regnum, $width
-        STMFD   sp!, {r0-r2}
+        STMFD   sp!, {r0-r1}
     [ "$regnum" <> "r0"
         MOV     r0, $regnum
     ]
+    [ "$regnum" <> "r1"
         MOV     r1, r0
+    ]
         SWI     OS_Write0
     [ "$width" <> ""
     [ $width > 0
@@ -104,7 +106,7 @@ printbuffersize * 20
         BPL     %BT40
     ]
     ]
-        LDMFD   sp!, {r0-r2}
+        LDMFD   sp!, {r0-r1}
         MEND
 
 ; -------------------------------------------------------------------------
@@ -112,6 +114,19 @@ printbuffersize * 20
         PrintLine    $message
         PrintMessage "$message", 0
         SWI     OS_NewLine
+        MEND
+
+; -------------------------------------------------------------------------
+        MACRO
+        PrintError
+        STMFD   sp!, {r0, r1}
+        SWI     OS_WriteI + '['
+        LDR     r1, [r0], #4
+        PrintHex r1
+        SWI     OS_WriteI + ']'
+        SWI     OS_WriteI + ' '
+        PrintString r0
+        LDMFD   sp!, {r0, r1}
         MEND
 
 

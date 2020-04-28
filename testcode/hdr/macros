@@ -4,6 +4,9 @@
 ; XSWI <swi>, <regs>*
 ;   - invoke a SWI passing in explicit registers
 ;
+; XBL <label>, <regs>*
+;   - call a label passing in explicit registers
+;
 ; Push <reglist>, <condition>
 ;   - push a register list on to the stack
 ;

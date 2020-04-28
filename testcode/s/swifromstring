@@ -2,6 +2,7 @@
         AREA    |Test$$Code|, CODE
 
         GET     hdr.swis
+        GET     hdr.printmacros
 
 buffer_size * 32
 
@@ -38,18 +39,16 @@ print1
         SWI     XOS_SWINumberFromString
         BVC     %FT05
 
-        ADD     r1, r0, #4
-        ADR     r0, error_prefix
-        SWI     OS_Write0
-        MOV     r0, r1
+        PrintMessage "Error: "
+        PrintError
         B       %FT10
 
 05
         ADR     r1, buffer
         MOV     r2, #buffer_size
         SWI     OS_ConvertHex8
-10
         SWI     OS_Write0
+10
         SWI     OS_NewLine
         MOV     pc, lr
 
