@@ -58,6 +58,8 @@
 #       - Begin a test definition
 # Command: <command>
 #       - Command to execute
+# Capture:
+#       - What we capture from the command ('stdout', 'stderr', 'both'), default 'both'
 # File: <source filename>
 #       - Source filename to apply
 # Args: <arguments>
@@ -353,6 +355,7 @@ my ($none, $testtoolname) = ($testtool =~ /(^|\/)([^\/]*)$/);
 # The parameters that are plain keys
 my %testparams = map { $_ => '$' } (
         'command',
+        'capture',
         'expect',
         'disable',
         'creates',
@@ -565,7 +568,7 @@ sub setup_variables
     $vars->{'ARGS'} = defined($test->{'args'}) ? $test->{'args'} : '';
     my @args = split / +/, $vars->{'ARGS'};
     my $argn = 1;
-    for $arg (0..9)
+    for $arg (0..8)
     {
         my $value = $args[$arg];
         $vars->{'ARG' . $argn} = defined $value ? $value : '';
@@ -667,7 +670,42 @@ sub substitute
     my ($str, $vars) = @_;
     return $str if (!defined $str);
 
-    $str =~ s/(^|[^\\])\$([A-Z]+[0-9]*)/$1 . (defined($vars->{$2}) ? $vars->{$2} : '$' . $2)/eg;
+    # Perl 5.0 doesn't support negative look behind, so the escaping with \$ isn't easy
+    # to capture with a single regex, so we go to a lot of trouble to split the string up
+    # and process individual variables.
+    my @parts = split /\$/, $str;
+    my $escape = 0;
+    # For some reason Perl trims off any trailing elements if the split string appears
+    # at the end of the list. So we put them back as empty elements.
+    my ($trail) = ($str =~ /(\$+)$/);
+    if ($trail)
+    {
+        for $i (1..length($trail))
+        {
+            push @parts, '';
+        }
+    }
+    for $i (0..$#parts)
+    {
+        if ($escape)
+        {
+            $parts[$i - 1] =~ s/\\$/\$/;
+        }
+        elsif ($i != 0)
+        {
+            if ($parts[$i] =~ s/^([A-Z]+[0-9]*)/(defined($vars->{$1}) ? $vars->{$1} : '$' . $1)/e)
+            {
+                # We performed the replacement.
+            }
+            else
+            {
+                # The value wasn't actually a variable, so put the dollar back
+                $parts[$i] = '$' . $parts[$i];
+            }
+        }
+        $escape = ($parts[$i] =~ /\\$/);
+    }
+    $str = join "", @parts;
     return $str;
 }
 
@@ -930,6 +968,7 @@ sub run_test
     my $name = $test->{'name'};
     my $disable = substitute($test->{'disable'}, $vars);
     my $cmd = substitute($test->{'command'}, $vars);
+    my $capture = substitute($test->{'capture'} || 'both', $vars);
     my $creates = substitute($test->{'creates'}, $vars);
     my $absent = substitute($test->{'absent'}, $vars);
     my $removes = substitute($test->{'removes'}, $vars);
@@ -951,7 +990,7 @@ sub run_test
     {
         $removes = native_filename($removes);
         # We create the file to check that it's not there at the end.
-        open(my $fh, "> $removes") || die "Cannot create '$removes' for 'removes' check: $!";
+        open(my $fh, '>', $removes) || die "Cannot create '$removes' for 'removes' check: $!";
         close($fh);
     }
 
@@ -980,6 +1019,22 @@ sub run_test
     $cmdtorun = escape_parameters($cmdtorun, 1);
 
     # FIXME: Probably not correct for RISC OS?
+    if ($capture eq 'stdout')
+    {
+        $cmdtorun .= ' 2> /dev/null';
+    }
+    elsif ($capture eq 'stderr')
+    {
+        $cmdtorun .= ' 2>&1 > /dev/null';
+    }
+    elsif ($capture eq 'both')
+    {
+        $cmdtorun .= ' 2>&1';
+    }
+    else
+    {
+        die "Bad 'capture' specification: must be 'stdout', 'stderr' or 'both', not '$capture'\n";
+    }
     if ($cmdtorun !~ / 2>/)
     {
         $cmdtorun .= ' 2>&1';
