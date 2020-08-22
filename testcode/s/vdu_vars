@@ -1,0 +1,265 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+        GET     hdr.macros
+        GET     hdr.vdu
+
+
+vdu_vars     ROUT
+        LDRB    r0, [r1], #1
+        TEQ     r0, #'M'
+        BEQ     vdu_vars_modevars
+        TEQ     r0, #'T'
+        BEQ     vdu_vars_text
+        TEQ     r0, #'G'
+        BEQ     vdu_vars_graphics
+
+        PrintLine "Syntax: vdu_vars M|T|G"
+        MOV     pc, lr
+
+buffer  % 128
+
+        MACRO
+        ShowVariable $label, $printer
+        PrintMessage "$label", 20
+        LDR     r2, [r1], #4
+    [ "$printer" = ""
+        PrintInteger r2
+    |
+     [ "$printer" = "hex"
+        PrintHex r2
+     |
+      [ "$printer" = "dimensions"
+        LDR     r3, [r1], #4
+      ]
+        BL      print_$printer
+     ]
+    ]
+        SWI     OS_NewLine
+        MEND
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+vdu_vars_modevars SIGNATURE
+        Push    "r1, lr"
+        PrintLine "--- ReadVduVariables (mode vars)"
+
+        XBL     get_vars, ^vars_modevars
+
+        ShowVariable MV_ScrRCol/BRow, dimensions
+        ShowVariable MV_NColour, colours
+        ShowVariable MV_XEig/YEig, dimensions
+        ShowVariable MV_LineLength
+        ShowVariable MV_ScreenSize, hex
+        ShowVariable MV_YShftFactor
+        ShowVariable MV_Log2BPP
+        ShowVariable MV_Log2BPC
+        ShowVariable MV_X/YWindLimit, dimensions
+
+        Pull    "r1, pc"
+
+vars_modevars
+        DCD     ModeVariable_ScrRCol
+        DCD     ModeVariable_ScrBRow
+        DCD     ModeVariable_NColour
+        DCD     ModeVariable_XEigFactor
+        DCD     ModeVariable_YEigFactor
+        DCD     ModeVariable_LineLength
+        DCD     ModeVariable_ScreenSize
+        DCD     ModeVariable_YShftFactor
+        DCD     ModeVariable_Log2BPP
+        DCD     ModeVariable_Log2BPC
+        DCD     ModeVariable_XWindLimit
+        DCD     ModeVariable_YWindLimit
+        DCD     -1
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+vdu_vars_text SIGNATURE
+        Push    "r1, lr"
+        PrintLine "--- ReadVduVariables (text vars)"
+
+        XBL     get_vars, ^vars_textvars
+
+        ShowVariable TWLCol/TWBRow, dimensions
+        ShowVariable TWRCol/TWTRow, dimensions
+        ShowVariable TForeCol
+        ShowVariable TBackCol
+        ShowVariable TFTint
+        ShowVariable TBTint
+        ShowVariable TCharSizeX/Y, dimensions
+        ShowVariable TCharSpaceX/Y, dimensions
+        ShowVariable WindowWidth/Height, dimensions
+
+        Pull    "r1, pc"
+
+vars_textvars
+        DCD     VduVariable_TWLCol
+        DCD     VduVariable_TWBRow
+        DCD     VduVariable_TWRCol
+        DCD     VduVariable_TWTRow
+        DCD     VduVariable_TForeCol
+        DCD     VduVariable_TBackCol
+        DCD     VduVariable_TFTint
+        DCD     VduVariable_TBTint
+        DCD     VduVariable_TCharSizeX
+        DCD     VduVariable_TCharSizeY
+        DCD     VduVariable_TCharSpaceX
+        DCD     VduVariable_TCharSpaceY
+        DCD     VduVariable_WindowWidth
+        DCD     VduVariable_WindowHeight
+        DCD     -1
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+vdu_vars_graphics SIGNATURE
+        Push    "r1, lr"
+        PrintLine "--- ReadVduVariables (graphics vars)"
+
+        ADRL    r0, vars_graphicsvars
+        BL      get_vars
+
+        ShowVariable GWLCol/GWBRow, dimensions
+        ShowVariable GWRCol/GWTRow, dimensions
+        ShowVariable OrgX/OrgY, dimensions
+        ShowVariable GCsX/GCsY, dimensions
+        ShowVariable OlderCsX/OlderCsY, dimensions
+        ShowVariable OldCsX/OldCsY, dimensions
+        ShowVariable GCsIX/GCsIY, dimensions
+        ShowVariable NewPtX/NewPtY, dimensions
+        ShowVariable ScreenStart, hex
+        ShowVariable DisplayStart, hex
+        ShowVariable TotalScreenSize, hex
+        ShowVariable GPLFMD
+        ShowVariable GPLBMD
+        ShowVariable GFCOL
+        ShowVariable GBCOL
+        ShowVariable GFTint
+        ShowVariable GBTint
+        ShowVariable GCharSizeX/Y, dimensions
+        ShowVariable GCharSpaceX/Y, dimensions
+        ShowVariable HLineAddr, hex
+        ShowVariable GcolOraEorAddr, hex
+        ShowVariable PolyHLineAddr, hex
+
+        Pull    "r1, pc"
+
+vars_graphicsvars
+        DCD     VduVariable_GWLCol
+        DCD     VduVariable_GWBRow
+        DCD     VduVariable_GWRCol
+        DCD     VduVariable_GWTRow
+        DCD     VduVariable_OrgX
+        DCD     VduVariable_OrgY
+        DCD     VduVariable_GCsX
+        DCD     VduVariable_GCsY
+        DCD     VduVariable_OlderCsX
+        DCD     VduVariable_OlderCsY
+        DCD     VduVariable_OldCsX
+        DCD     VduVariable_OldCsY
+        DCD     VduVariable_GCsIX
+        DCD     VduVariable_GCsIY
+        DCD     VduVariable_NewPtX
+        DCD     VduVariable_NewPtY
+        DCD     VduVariable_ScreenStart
+        DCD     VduVariable_DisplayStart
+        DCD     VduVariable_TotalScreenSize
+        DCD     VduVariable_GPLFMD
+        DCD     VduVariable_GPLBMD
+        DCD     VduVariable_GFCOL
+        DCD     VduVariable_GBCOL
+        DCD     VduVariable_GFTint
+        DCD     VduVariable_GBTint
+        DCD     VduVariable_GCharSizeX
+        DCD     VduVariable_GCharSizeY
+        DCD     VduVariable_GCharSpaceX
+        DCD     VduVariable_GCharSpaceY
+        DCD     VduVariable_HLineAddr
+        DCD     VduVariable_GcolOraEorAddr
+        DCD     VduVariable_PolyHLineAddr
+        DCD     -1
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+get_vars SIGNATURE
+        Push    "r5, r6, lr"
+        ADRL    r1, buffer
+        MOV     r5, r0
+        MOV     r6, r1
+        SWI     OS_ReadVduVariables
+        TEQ     r0, r5
+        BEQ     %FT20
+        PrintLine "Error: Input vars pointer has changed"
+20
+        TEQ     r1, r6
+        BEQ     %FT30
+        PrintLine "Error: Output vars pointer has changed"
+30
+        Pull    "r5, r6, pc"
+
+
+
+
+        MACRO
+$label  PrintBitChar $reg, $bit, $onchar
+$label  TST     $reg, #1<<$bit
+        MOVNE   r0, #$onchar
+        MOVEQ   r0, #' '
+        SWI     XOS_WriteC
+        MEND
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; => r2 = value
+print_modeflags SIGNATURE
+        Push    "lr"
+        PrintHex r2, 10
+        PrintBitChar r2, 0, 'G'                 ; Graphics mode
+        PrintBitChar r2, 1, 'T'                 ; Teletext mode
+        PrintBitChar r2, 2, 'g'                 ; Gap mode
+        PrintBitChar r2, 3, 'B'                 ; BBC Gap mode
+        PrintBitChar r2, 4, 'H'                 ; Hires mono
+        PrintBitChar r2, 5, 'D'                 ; Double height characters
+        PrintBitChar r2, 6, 'w'                 ; No hardware scroll
+        PrintBitChar r2, 7, 'F'                 ; Full paletted (not 256 colour)
+        PrintBitChar r2, 8, 'i'                 ; Interlaced
+        PrintBitChar r2, 9, 's'                 ; Grayscale palette
+        ; Note: Format is in bits 12-15, FIXME
+        Pull    "pc"
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; => r2 = x value
+;    r3 = y value
+print_dimensions SIGNATURE
+        Push    "lr"
+        PrintInteger r2, 4
+        SWI     XOS_WriteI + 'x'
+        SWI     XOS_WriteI + ' '
+        PrintInteger r3, 4
+        Pull    "pc"
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; => r2 = colours
+print_colours SIGNATURE
+        Push    "lr"
+        ADD     r2, r2, #1
+        MOV     r3, r2
+        MOV     r4, #' '
+        TEQ     r3, #0
+        MOVEQ   r2, #4
+        MOVEQ   r4, #'B'
+        TEQ     r3, #1<<24
+        MOVEQ   r2, #16
+        MOVEQ   r4, #'M'
+        TEQ     r3, #1<<15
+        MOVEQ   r2, #32
+        MOVEQ   r4, #'K'
+        PrintInteger r2, 3
+        XSWI    XOS_WriteC, r4
+        Pull    "pc"
+
+
+        END

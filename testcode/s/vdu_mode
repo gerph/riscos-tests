@@ -4,21 +4,7 @@
         GET     hdr.swis
         GET     hdr.printmacros
         GET     hdr.macros
-
-                            ^ 0
-ModeVariable_ModeFlags      # 1
-ModeVariable_ScrRCol        # 1
-ModeVariable_ScrBRow        # 1
-ModeVariable_NColour        # 1
-ModeVariable_XEigFactor     # 1
-ModeVariable_YEigFactor     # 1
-ModeVariable_LineLength     # 1
-ModeVariable_ScreenSize     # 1
-ModeVariable_YShftFactor    # 1
-ModeVariable_Log2BPP        # 1
-ModeVariable_Log2BPC        # 1
-ModeVariable_XWindLimit     # 1
-ModeVariable_YWindLimit     # 1
+        GET     hdr.vdu
 
 
 MaxMode * 50
@@ -27,6 +13,20 @@ vdu_mode     ROUT
         Push    "r1, lr"
 
         PrintLine "--- ReadModeVariables"
+
+        BL      headings
+
+        MOV     r8, r1
+        LDRB    r0, [r8]
+        ADR     lr, %FT90
+        CMP     r0, #32
+        BLT     show_all
+        B       show_numbered
+90
+        Pull    "r1, pc"
+
+headings SIGNATURE
+        Push    "r1, lr"
 
 ; Headings
         PrintMessage "M#", 4
@@ -44,6 +44,29 @@ vdu_mode     ROUT
         PrintMessage "GW", 6
         PrintMessage "GH", 6
         SWI     XOS_NewLine
+
+        Pull    "r1, pc"
+
+
+; Just show the numbered modes supplied
+show_numbered SIGNATURE
+        Push    "r1, lr"
+
+20
+        XSWI    XOS_ReadUnsigned, #10, r8
+        MOV     r8, r1
+        MOV     r9, r2
+        BL      show_mode_variables
+        LDRB    r0, [r8], #1
+        TEQ     r0, #32
+        BEQ     %BT20
+
+        Pull    "r1, pc"
+
+
+; Show all the modes (0-MaxMode)
+show_all SIGNATURE
+        Push    "r1, lr"
 
         MOV     r9, #0
 10

@@ -28,7 +28,9 @@ rma_claim     ROUT
         BEQ     claim_claim_free_claim_greater
         TEQ     r0, #'l'
         BEQ     claim_claim_free_claim_lesser
-        PrintLine "Syntax: rma_claim c|f|2|i|s|r|g|l"
+        TEQ     r0, #'d'
+        BEQ     claim_display
+        PrintLine "Syntax: rma_claim c|f|2|i|s|r|g|l|d[cf]"
         MOV     pc, lr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -41,6 +43,45 @@ claim SIGNATURE
         SWI     OS_NewLine
 
         MOV     pc, lr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+claim_display SIGNATURE
+        Push    "lr"
+        PrintLine "Display data in block"
+        LDRB    r0, [r1], #1
+        TEQ     r0, #'c'
+        BEQ     %FT10
+        TEQ     r0, #'f'
+        BEQ     %FT20
+        PrintLine "Syntax: rma_claim d[cf]"
+        Pull    "pc"
+
+10
+        PrintLine "  after claim"
+        XSWI    OS_Module, #ModHandReason_Claim,,, #16
+        B       %FT40
+
+20
+        PrintLine "  after claim and free"
+        XSWI    OS_Module, #ModHandReason_Claim,,, #16
+        MOV     r3, r2
+        XSWI    OS_Module, #ModHandReason_Free
+        MOV     r2, r3
+        B       %FT40
+
+40
+        MOV     r1, #0
+50
+        PrintMessage "Offset "
+        PrintInteger r1, 8
+        LDR     r0, [r2, r1]
+        PrintHex r0
+        SWI     OS_NewLine
+        ADD     r1, r1, #4
+        TEQ     r1, #16
+        BNE     %BT50
+
+        Pull    "pc"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 claim_zero SIGNATURE

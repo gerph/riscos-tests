@@ -1,16 +1,18 @@
 ; Some macros for printing things
 
         GBLS    printbufferaddress
+        GBLS    printbufferregister
 
 ; if printbufferaddress is set, we use it; otherwise we use r12
 printbufferaddress  SETS    ""
+printbufferregister SETS    "r12"
 printbuffersize * 20
 
 ; -------------------------------------------------------------------------
         MACRO
         SetupPrintBuffer $regnum
     [ "$printbufferaddress" = ""
-        MOV     $regnum, r12
+        MOV     $regnum, $printbufferregister
     |
         ADRL    $regnum, $printbufferaddress
     ]
@@ -48,6 +50,7 @@ printbuffersize * 20
         PrintMessage    $message, $width
         SWI     OS_WriteS
         = "$message", 0
+        ALIGN
     [ "$width" <> ""
     [ $width > :LEN: "$message"
         STMFD   sp!, {r1}

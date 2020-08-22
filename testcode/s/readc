@@ -3,6 +3,7 @@
 
         GET     hdr.swis
         GET     hdr.macros
+        GET     hdr.printmacros
 
 read_a_key      ROUT
         LDRB    r0, [r1], #1
@@ -21,11 +22,13 @@ readc SIGNATURE
 10
         MOV     r1, r0
 
-        ADR     r0, message
-        SWI     OS_Write0
+        PrintMessage "You pressed "
 
         MOV     r0, r1
         SWI     OS_WriteC
+        SWI     OS_WriteI + ' '
+        PrintInteger r1
+
         SWI     OS_NewLine
         MOV     pc, lr
 

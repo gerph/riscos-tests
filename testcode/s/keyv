@@ -3,6 +3,7 @@
 
         GET     hdr.swis
         GET     hdr.macros
+        GET     hdr.printmacros
 
 ; vector
 KeyV * &13
@@ -14,6 +15,8 @@ KeyV_Pressed * 2
 ; codes
 KeyV_LShift * 76
 KeyV_P * 48
+KeyV_1 * 17
+KeyV_Tab * 38
 
 
 insert_keyv      ROUT
@@ -26,8 +29,32 @@ insert_keyv      ROUT
         BEQ     press_lshift
         TEQ     r0, #'p'
         BEQ     press_p
+        TEQ     r0, #'t'
+        BEQ     press_tab
+        TEQ     r0, #'1'
+        BEQ     press_1
+        TEQ     r0, #'d'
+        BEQ     inkey_delay_short
+        TEQ     r0, #'l'
+        BEQ     inkey_delay_long
+        TEQ     r0, #'m'
+        BEQ     inkey_delay_medium
+        CMP     r0, #'r'
+        BEQ     readc
         CMP     r0, #32
-        BLS     readc
+        BLS     %FT99
+
+        PrintLine "Syntax: keyv {[spw]}*"
+        PrintLine "  s = press shift"
+        PrintLine "  p = press p"
+        PrintLine "  1 = press 1"
+        PrintLine "  t = press tab"
+        PrintLine "  d = INKEY(4)  [short]"
+        PrintLine "  m = INKEY(12) [medium]"
+        PrintLine "  l = INKEY(35) [long]"
+        PrintLine "  r = GET"
+99
+        Pull    "pc"
 
 
 readc SIGNATURE
@@ -56,6 +83,12 @@ message
 press_p SIGNATURE
         MOV     r0, #KeyV_P
         B       press
+press_1 SIGNATURE
+        MOV     r0, #KeyV_1
+        B       press
+press_tab SIGNATURE
+        MOV     r0, #KeyV_Tab
+        B       press
 press_lshift SIGNATURE
         MOV     r0, #KeyV_LShift
         B       press
@@ -66,5 +99,45 @@ press SIGNATURE
         MOV     r9, #KeyV
         SWI     OS_CallAVector
         MOV     pc, lr
+
+inkey_delay_short SIGNATURE
+        MOV     r1, #4
+        B       inkey_delay
+
+inkey_delay_medium SIGNATURE
+        MOV     r1, #12
+        B       inkey_delay
+
+inkey_delay_long SIGNATURE
+        MOV     r1, #35
+        B       inkey_delay
+
+inkey_delay SIGNATURE
+        Push    "lr"
+        PrintMessage "INKEY("
+        PrintInteger r1
+        PrintMessage "): "
+
+        MOV     r0, #&81
+        MOV     r2, #0
+        SWI     OS_Byte
+        TEQ     r2, #0
+        BEQ     %FT30                   ; key was pressed
+
+        PrintLine "Nothing pressed"
+        Pull    "pc"
+
+30
+        PrintMessage "Pressed "
+        SUBS    r0, r1, #32
+        CMP     r0, #127-32
+        MOVHS   r0, #'?'
+        MOVLO   r0, r1
+        SWI     OS_WriteC
+        SWI     OS_WriteI + 32
+        PrintInteger r1
+        SWI     OS_NewLine
+        Pull    "pc"
+
 
         END

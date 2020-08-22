@@ -13,7 +13,7 @@ read_line      ROUT
         ADR     r0, buffer
         MOV     r1, #buffer_size
         MOV     r2, #' '
-        MOV     r3, #127
+        MOV     r3, #256
         SWI     OS_ReadLine
 
         MOVCS   r4, #1              ; Escape pressed

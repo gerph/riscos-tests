@@ -1,0 +1,177 @@
+       SUBT     APCS entry and exit functions
+
+; Usage for simple functions:
+;   mylabel     APCSEntry   "r4-r6"
+;               ...
+;               APCSExit
+;
+; Exit conditionally
+;   mylabel     APCSEntry   "r4-r6"
+;               TEQ     r0, #5
+;               APCSExit    NE
+;               ...
+;               APCSExit
+;
+; With stack space reserved:
+;   mylabel     APCSEntry   "r4-r6", 48
+;               STR     r0, [sp]           ; store r0 in reserved space
+;               APCSExit
+;
+; To disable stack checking, set ProcAPCS_CheckStack to {FALSE} on entry.
+;
+
+       GBLS     ProcAPCS_RegList    ; Which registers to preserve
+       GBLA     ProcAPCS_LocalStack ; And any ADJSP on entry/exit for local vars
+
+     [ :LNOT: :DEF: ProcAPCS_CheckStack
+       GBLL     ProcAPCS_CheckStack ; Should we check the stack or not
+      [ :DEF: BUILD_ZM
+ProcAPCS_CheckStack SETL :LNOT: BUILD_ZM
+      |
+ProcAPCS_CheckStack SETL {FALSE}
+      ]
+     ]
+     [ :LNOT: :DEF: ProcAPCS_Config
+       GBLA     ProcAPCS_Config     ; APCS configuration
+ProcAPCS_Config SETA {CONFIG}
+     ]
+
+
+     [ ProcAPCS_CheckStack
+       IMPORT   __rt_stkovf_split_small
+       IMPORT   __rt_stkovf_split_big
+     ]
+
+
+; Register naming for APCS
+ip      RN      12
+fp      RN      11
+sl      RN      10
+sb      RN      9
+
+
+        GET     hdr.macros          ; for SIGNATURE
+
+; ***************************************************************************
+; *** Keep a note of local stack and register use at the routine entry    ***
+; *** point so that an exit may be effected anywhere in the body without  ***
+; *** remembering how many (and which) registers to destack and ADJSP.    ***
+; *** Also ensures that the code entry label is word-aligned.             ***
+; ***************************************************************************
+; Syntax:
+;
+;  <label>    APCSEntry  <registers to pass> [, <bytes to reserve on stack>
+;                        [, <bytes to ensure available on stack> ] ]
+;                        [, <whether to include signature> ] ]
+; --- Prefix the register list with '+' if more than 5 registers are required,
+;     to stack them at the frame pointer.
+;     The bytes reserved on the stack will be available at [sp,#...]
+;     The space ensured may be 'nostackcheck' to remove any form of checking
+;     The signature should be 'nosignature' to disable the signature
+;
+;  <label>    APCSEntry  in_<register> [, <bytes to reserve on stack>
+; --- This form of APCS entry sequence just uses the register specified
+;     to hold the return address.
+;
+        MACRO
+$label  APCSEntry $reglist,$framesize,$ensuresize,$signature
+        ALIGN
+        LCLA    Ensure
+ProcAPCS_RegList SETS "$reglist"
+ [ "$framesize" = ""
+ProcAPCS_LocalStack SETA 0
+ |
+ProcAPCS_LocalStack SETA $framesize
+ ]
+ [ "$ensuresize" = "" :LOR: "$ensuresize" = "nostackcheck"
+Ensure  SETA    0 + ProcAPCS_LocalStack
+ |
+Ensure  SETA    $ensuresize + ProcAPCS_LocalStack
+ ]
+        ROUT
+ [ "$signature" = "nosignature" :LOR: "$label" = ""
+$label
+ |
+$label  SIGNATURE
+ ]
+
+ [ "$ProcAPCS_RegList   " :LEFT: 3 = "in_"
+; simple APCS entry, just holding on to the return point in a register
+        LCLS    InReg
+InReg   SETS    "$ProcAPCS_RegList" :RIGHT: (:LEN: "$ProcAPCS_RegList" - 3)
+        MOV     $InReg, lr
+
+ |
+; full APCS style entry sequence
+        MOV     ip, sp
+        LCLA    FPOffset
+FPOffset SETA   4
+   [ :LEN: "$ProcAPCS_RegList" > 0
+    [ "$ProcAPCS_RegList" :LEFT: 1 = "+"
+        STMFD   sp!,{r0-r3}                         ; >4 registers passed, so we store them above the fp
+ProcAPCS_RegList SETS    "$ProcAPCS_RegList" :RIGHT: (:LEN: "$ProcAPCS_RegList" - 1)
+FPOffset SETA   FPOffset + 16
+    ]
+   ]
+   [ "$ProcAPCS_RegList" = ""
+        STMFD   sp!,{fp,ip,lr,pc}
+   |
+        STMFD   sp!,{$ProcAPCS_RegList,fp,ip,lr,pc}
+   ]
+        SUB     fp, ip, #FPOffset
+   [ ProcAPCS_CheckStack :LAND: "$ensuresize" <> "nostackcheck"
+     [ Ensure <> 0
+        SUB     ip, sp, #Ensure
+        CMP     ip, sl
+        BLLT    __rt_stkovf_split_big              ; ensure sufficient stack space
+     |
+        CMP     sp, sl
+        BLLT    __rt_stkovf_split_small            ; ensure sufficient stack space
+     ]
+   ]
+ ]
+
+ [ ProcAPCS_LocalStack <> 0
+        SUB     sp, sp, #ProcAPCS_LocalStack
+ ]
+        MEND
+
+; ***************************************************************************
+; *** Exit procedure, restore stack and saved registers to values on entry***
+; ***************************************************************************
+        MACRO
+$label  APCSExit    $cond
+$label
+ [ ProcAPCS_LocalStack <> 0
+        ADD$cond      sp, sp, #ProcAPCS_LocalStack
+ ]
+
+ [ "$ProcAPCS_RegList   " :LEFT: 3 = "in_"
+; simple APCS exit, returning to a register
+        LCLS    InReg
+InReg   SETS    "$ProcAPCS_RegList" :RIGHT: (:LEN: "$ProcAPCS_RegList" - 3)
+     [ ProcAPCS_Config=32
+        MOV$cond      pc, $InReg
+     |
+        MOV$cond.S    pc, $InReg
+     ]
+ |
+   [ "$ProcAPCS_RegList" = ""
+     [ ProcAPCS_Config=32
+        LDM$cond.DB   fp,{fp,sp,pc}
+     |
+        LDM$cond.DB   fp,{fp,sp,pc}^
+     ]
+   |
+     [ ProcAPCS_Config=32
+        LDM$cond.DB   fp,{$ProcAPCS_RegList,fp,sp,pc}
+     |
+        LDM$cond.DB   fp,{$ProcAPCS_RegList,fp,sp,pc}^
+     ]
+   ]
+ ]
+        MEND
+
+; ***************************************************************************
+
+        END

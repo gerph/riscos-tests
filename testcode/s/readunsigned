@@ -163,6 +163,14 @@ readunsigned    ROUT
         TestString "123 ", 10, Flag_EndOnControl, 123, 123, 3
         TestString "123A", 10, Flag_EndOnControl, 123, error
 
+; Leading spaces should be skipped
+        TestString " 123", 10, 0, 255, 123, 4
+
+; Space terminator
+        TestString "1234 5", 10, 0, 0, 1234, 4
+        TestString "&1234 5", 10, 0, 0, &1234, 5
+        TestString "2_10101010 5", 10, 0, 0, &aa, 10
+
         PrintLine "++++++"
         TEQ     r8, #0
         BEQ     %FT90

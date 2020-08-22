@@ -1,0 +1,54 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+        GET     hdr.macros
+
+; character testing - for use with the small frame buffer
+vdu_char     ROUT
+
+        LDRB    r0, [r1], #1
+        TEQ     r0, #'r'
+        BEQ     vdu_readchar
+
+        PrintLine "Use r"
+        MOV     pc, lr
+
+
+; Read a character at the cursor position.
+vdu_readchar SIGNATURE
+        Push    "lr"
+        LDRB    r0, [r1], #1
+        SWI     OS_WriteC
+        SWI     OS_WriteI + 8       ; move back a character
+
+        ; ensure that our registers don't contain the character, so what we get back should be
+        ; from the screen.
+        MOV     r0, #&100
+        MOV     r1, #&200
+        MOV     r2, #&300
+
+        XSWI    OS_Byte, 135
+
+        SWI     OS_NewLine
+        PrintMessage "ReadChar: "
+        TEQ     r2, #0
+        BEQ     %FT30
+
+        PrintInteger r1, 4
+        XSWI    OS_WriteC, r1
+        SWI     OS_NewLine
+        B       %FT40
+
+30
+        PrintLine "<unreadable>"
+
+40
+        PrintMessage "Mode: "
+        PrintInteger r2
+        SWI     OS_NewLine
+
+        Pull    "pc"
+
+        END

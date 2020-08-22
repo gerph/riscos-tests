@@ -1,0 +1,149 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+        GET     hdr.macros
+        GET     hdr.modhand
+
+; SysLog SWI numbers
+                        ^ &0004c880
+SysLog_LogMessage       # 1
+SysLog_GetLogLevel      # 1
+SysLog_FlushLog         # 1
+SysLog_SetLogLevel      # 1
+SysLog_LogUnstamped     # 1
+SysLog_Indent           # 1
+SysLog_UnIndent         # 1
+SysLog_NoIndent         # 1
+SysLog_OpenSessionLog   # 1
+SysLog_CloseSessionLog  # 1
+SysLog_LogData          # 1
+SysLog_LogFormatted     # 1
+SysLog_ReadErrorMessage # 1
+SysLog_LogComplete      # 1
+SysLog_IRQMode          # 1
+SysLog_LogCharacter     # 1
+SysLog_Control          # 1
+SysLog_Enumerate        # 1
+
+Priority_Normal * 100
+
+syslog     ROUT
+        LDRB    r0, [r1], #1
+        TEQ     r0, #'i'
+        BEQ     syslog_indents
+        TEQ     r0, #'u'
+        BEQ     syslog_unstamped
+        TEQ     r0, #'e'
+        BEQ     syslog_readerrormessage
+        TEQ     r0, #'c'
+        BEQ     syslog_character
+
+        PrintLine "Syntax: syslog {i|u|e|c}"
+        SWI     XOS_Exit
+
+syslog_indents SIGNATURE
+        PrintLine "SysLog indentation"
+
+        XSWI    SysLog_LogMessage, ^logname, ^message, #Priority_Normal
+        XSWI    SysLog_Indent, ^logname
+        XSWI    SysLog_LogMessage, ^logname, ^message, #Priority_Normal
+        XSWI    SysLog_Indent, ^logname
+        XSWI    SysLog_LogMessage, ^logname, ^message, #Priority_Normal
+        XSWI    SysLog_Indent, ^logname
+        XSWI    SysLog_LogMessage, ^logname, ^message, #Priority_Normal
+        XSWI    SysLog_UnIndent, ^logname
+        XSWI    SysLog_LogMessage, ^logname, ^unindent_message, #Priority_Normal
+        XSWI    SysLog_NoIndent, ^logname
+        XSWI    SysLog_LogMessage, ^logname, ^noindent_message, #Priority_Normal
+
+        PrintLine "Log complete, printing"
+
+        XSWI    OS_CLI, ^syslog_show
+
+        MOV     pc, lr
+
+
+logname = "TestLog", 0
+message = "A log message", 0
+unindent_message = "Unindent message", 0
+        ALIGN
+noindent_message = "No indent", 0
+        ALIGN
+unstamped_message = "Unstamped log", 0
+        ALIGN
+
+syslog_status = "SysLog_Status", 0
+        ALIGN
+syslog_show = "SysLog TestLog ShowCache", 0
+        ALIGN
+modname = "SysLog", 0
+        ALIGN
+
+
+syslog_unstamped SIGNATURE
+        PrintLine "SysLog unstamped"
+
+        XSWI    SysLog_LogMessage, ^logname, ^message, #Priority_Normal
+        XSWI    SysLog_LogUnstamped, ^logname, ^unstamped_message, #Priority_Normal
+
+        PrintLine "Log complete, printing"
+
+        XSWI    OS_CLI, ^syslog_show
+
+        MOV     pc, lr
+
+
+syslog_readerrormessage SIGNATURE
+        PrintLine "SysLog read error messages"
+
+        LDRB    r4, [r1], #1
+        TEQ     r4, #'k'
+        BNE     %FT20
+        PrintLine "  and kill module"
+20
+
+        MACRO
+        GetErrorMessage $err
+        MOV     r0, #$err
+        PrintMessage "Error "
+        PrintInteger r0
+        PrintMessage " : "
+        SWI     SysLog_ReadErrorMessage
+        PrintString r0
+        SWI     OS_NewLine
+        MEND
+
+        GetErrorMessage 0
+        GetErrorMessage 0
+        GetErrorMessage 32
+        GetErrorMessage 98
+
+        TEQ     r4, #'k'
+        BNE     %FT90
+
+        PrintLine "Kill module"
+        XSWI    OS_Module, #ModHandReason_Delete, ^modname
+
+90
+        MOV     pc, lr
+
+
+syslog_character SIGNATURE
+        PrintLine "SysLog character"
+
+        XSWI    SysLog_LogCharacter, ^logname, #'h', Priority_Normal
+        XSWI    SysLog_LogCharacter, ^logname, #'e', Priority_Normal
+        XSWI    SysLog_LogCharacter, ^logname, #'l', Priority_Normal
+        XSWI    SysLog_LogCharacter, ^logname, #'l', Priority_Normal
+        XSWI    SysLog_LogCharacter, ^logname, #'o', Priority_Normal
+        XSWI    SysLog_LogCharacter, ^logname, #10, Priority_Normal
+
+        PrintLine "Log complete, printing"
+
+        XSWI    OS_CLI, ^syslog_show
+
+        MOV     pc, lr
+
+        END
