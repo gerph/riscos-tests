@@ -1,0 +1,6 @@
+Input     two
+Keywords  a/s,b
+-----
+0   B  &00000000 Bool: False
+0   S  &RMAXXXXX >two<
+

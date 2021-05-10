@@ -1,0 +1,130 @@
+#
+# SUT:    Ancilliary SWIs: ReadArgs
+# Area:   Translation of strings
+# Class:  Functional
+# Type:   Integration test
+#
+
+# For my own sanity, I'm going to trust that once I've tested the basic functioning of the
+# interface, the actual execution for the many cases has already been exercised by the
+# test_readargs.py test script.
+
+
+Group: ReadArgs: Basic strings
+File: bin.readargs
+Command: $TOOL $FILE $ARGS
+Replace: expect.readargs.replacements
+
+Test: Empty args (2)
+Args: a,b::SS
+Expect: expect.readargs.empty2
+
+Test: 1 arg
+Args: a,b:one:SS
+Expect: expect.readargs.arg1
+
+Test: 2 args
+Args: a,b:one two:SS
+Expect: expect.readargs.arg2
+
+Test: named 2nd
+Args: a,b:-b two:SS
+Expect: expect.readargs.arg2named
+
+Test: 2 named, reversed
+Args: a,b:-b two -a one:SS
+Expect: expect.readargs.argbothnamed
+
+
+Group: ReadArgs: Aliasd
+File: bin.readargs
+Command: $TOOL $FILE $ARGS
+Replace: expect.readargs.replacements
+
+Test: Empty arg
+Args: a=x::S
+Expect: expect.readargs.alias_empty
+
+Test: Arg, no specifier
+Args: a=x:one:S
+Expect: expect.readargs.alias_arg_nospecifier
+
+Test: Arg, primary specifier
+Args: a=x:-a one:S
+Expect: expect.readargs.alias_arg_primary
+
+Test: Arg, alias specifier
+Args: a=x:-x one:S
+Expect: expect.readargs.alias_arg_alias
+
+
+Group: ReadArgs: Booleans
+File: bin.readargs
+Command: $TOOL $FILE $ARGS
+Replace: expect.readargs.replacements
+
+Test: Boolean missing
+Args: a/s::B
+Expect: expect.readargs.bool_false
+
+Test: Boolean present
+Args: a/s:-a:B
+Expect: expect.readargs.bool_true
+
+Test: Boolean missing + arg
+Args: a/s,b:two:BS
+Expect: expect.readargs.bool_false_arg
+
+Test: Boolean present + arg
+Args: a/s,b:two -a:BS
+Expect: expect.readargs.bool_true_arg
+
+
+Group: ReadArgs: GSTrans
+File: bin.readargs
+Command: $TOOL $FILE $ARGS
+Replace: expect.readargs.replacements
+
+Test: Empty
+Args: a/g::G
+Expect: expect.readargs.gstrans_empty
+
+Test: Simple
+Args: a/g:one:G
+Expect: expect.readargs.gstrans_simple
+
+
+Group: ReadArgs: Required
+File: bin.readargs
+Command: $TOOL $FILE $ARGS
+Replace: expect.readargs.replacements
+
+Test: Not supplied
+Args: a/a::S
+Expect: expect.readargs.required_notsupplied
+
+Test: Not supplied (unnamed)
+Args: /a::S
+Expect: expect.readargs.required_notsupplied_unnamed
+
+Test: Supplied
+Args: a/a:one:S
+Expect: expect.readargs.required_supplied
+
+
+Group: ReadArgs: Bad parameters
+File: bin.readargs
+Command: $TOOL $FILE $ARGS
+Replace: expect.readargs.replacements
+
+Test: Bad keyword name
+Args: a/a:-b stuff:S
+Expect: expect.readargs.bad_keyword
+
+Test: Too many arguments
+Args: a:one two:S
+Expect: expect.readargs.bad_too_many
+
+Test: Specified twice
+Args: a:-a one -a two:S
+Expect: expect.readargs.bad_repeated

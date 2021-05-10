@@ -1,0 +1,5 @@
+Input     -x one
+Keywords  a=x
+-----
+0   S  &RMAXXXXX >one<
+

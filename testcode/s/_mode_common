@@ -1,0 +1,127 @@
+; Some functions for operating on mode variables
+
+        MACRO
+$label  PrintModeVariable $var, $size
+$label  XSWI    XOS_ReadModeVariable, r9, $var
+        PrintInteger r2, $size
+        MEND
+
+
+modelist_headings SIGNATURE
+        Push    "r1, lr"
+
+; Headings
+        PrintMessage "M#", 4
+        PrintMessage "V?", 3
+        PrintMessage "Flags", 21
+        PrintMessage "TW", 6
+        PrintMessage "TH", 5
+        PrintMessage "Cols", 6
+        PrintMessage "Xe", 4
+        PrintMessage "Ye", 3
+        PrintMessage "Line", 6
+        PrintMessage "Memory", 8
+        PrintMessage "BPP", 4
+        PrintMessage "BPC", 4
+        PrintMessage "GW", 6
+        PrintMessage "GH", 6
+        SWI     XOS_NewLine
+
+        Pull    "r1, pc"
+
+
+modelist_variables SIGNATURE
+        Push    "r0-r4, r9, lr"
+        MOV     r9, r0
+        CMP     r9, #-1
+        BNE     %FT20
+        PrintMessage "Cur "
+        MOV     r0, #'-'                        ; the mode is always valid (although it'll return as invalid)
+        B       %FT30
+
+20
+        PrintInteger r9, 4
+
+; Check Mode Valid
+        XSWI    XOS_CheckModeValid, r9
+        MOVCC   r0, #'V'                        ; Valid mode
+        MOVCS   r0, #'x'                        ; invalid mode
+        MOVVS   r0, #'E'                        ; CheckModeValid reported an error?!
+30
+        SWI     XOS_WriteC
+        SWI     XOS_WriteI + ' '
+        SWI     XOS_WriteI + ' '
+
+; Now read the variables
+        XSWI    XOS_ReadModeVariable, r9, ModeVariable_ModeFlags
+        BVS     %FT90
+        PrintHex r2, 10
+
+        PrintBitChar r2, 0, 'G'                 ; Graphics mode
+        PrintBitChar r2, 1, 'T'                 ; Teletext mode
+        PrintBitChar r2, 2, 'g'                 ; Gap mode
+        PrintBitChar r2, 3, 'B'                 ; BBC Gap mode
+        PrintBitChar r2, 4, 'H'                 ; Hires mono
+        PrintBitChar r2, 5, 'D'                 ; Double height characters
+        PrintBitChar r2, 6, 'w'                 ; No hardware scroll
+        PrintBitChar r2, 7, 'F'                 ; Full paletted (not 256 colour)
+        PrintBitChar r2, 8, 'i'                 ; Interlaced
+        PrintBitChar r2, 9, 's'                 ; Grayscale palette
+        ; Note: Format is in bits 12-15, FIXME
+
+        SWI     XOS_WriteI + ' '
+
+        PrintModeVariable ModeVariable_ScrRCol, 4
+        SWI     XOS_WriteI + 'x'
+        SWI     XOS_WriteI + ' '
+        PrintModeVariable ModeVariable_ScrBRow, 5
+
+; colours
+        XSWI    XOS_ReadModeVariable, r9, ModeVariable_NColour
+        ADD     r2, r2, #1
+        MOV     r3, r2
+        MOV     r4, #' '
+        TEQ     r3, #0
+        MOVEQ   r2, #4
+        MOVEQ   r4, #'B'
+        TEQ     r3, #1<<24
+        MOVEQ   r2, #16
+        MOVEQ   r4, #'M'
+        TEQ     r3, #1<<16
+        MOVEQ   r2, #64
+        MOVEQ   r4, #'K'
+        TEQ     r3, #1<<15
+        MOVEQ   r2, #32
+        MOVEQ   r4, #'K'
+        PrintInteger r2, 3
+        XSWI    XOS_WriteC, r4
+
+        SWI     XOS_WriteI + ' '
+        SWI     XOS_WriteI + ' '
+
+; eigenfactors
+        PrintModeVariable ModeVariable_XEigFactor, 2
+        SWI     XOS_WriteI + 'x'
+        SWI     XOS_WriteI + ' '
+        PrintModeVariable ModeVariable_YEigFactor, 3
+
+        PrintModeVariable ModeVariable_LineLength, 6
+        PrintModeVariable ModeVariable_ScreenSize, 8
+
+        PrintModeVariable ModeVariable_Log2BPP, 4
+        PrintModeVariable ModeVariable_Log2BPC, 4
+
+        PrintModeVariable ModeVariable_XWindLimit, 5
+        SWI     XOS_WriteI + 'x'
+        SWI     XOS_WriteI + ' '
+        PrintModeVariable ModeVariable_YWindLimit, 5
+
+        SWI     XOS_NewLine
+
+        Pull    "r0-r4, r9, pc"
+
+90
+        PrintLine "Invalid"
+        Pull    "r0-r4, r9, pc"
+
+        END

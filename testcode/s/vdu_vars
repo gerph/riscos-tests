@@ -44,6 +44,7 @@ buffer  % 128
 vdu_vars_modevars SIGNATURE
         Push    "r1, lr"
         PrintLine "--- ReadVduVariables (mode vars)"
+        BL      show_mode
 
         XBL     get_vars, ^vars_modevars
 
@@ -79,6 +80,7 @@ vars_modevars
 vdu_vars_text SIGNATURE
         Push    "r1, lr"
         PrintLine "--- ReadVduVariables (text vars)"
+        BL      show_mode
 
         XBL     get_vars, ^vars_textvars
 
@@ -116,6 +118,7 @@ vars_textvars
 vdu_vars_graphics SIGNATURE
         Push    "r1, lr"
         PrintLine "--- ReadVduVariables (graphics vars)"
+        BL      show_mode
 
         ADRL    r0, vars_graphicsvars
         BL      get_vars
@@ -199,15 +202,15 @@ get_vars SIGNATURE
         Pull    "r5, r6, pc"
 
 
-
-
-        MACRO
-$label  PrintBitChar $reg, $bit, $onchar
-$label  TST     $reg, #1<<$bit
-        MOVNE   r0, #$onchar
-        MOVEQ   r0, #' '
-        SWI     XOS_WriteC
-        MEND
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+show_mode SIGNATURE
+        Push    "r0, r1, lr"
+        XSWI     XOS_ScreenMode, 1
+        MOVVS   r0, #-1
+        PrintMessage "Mode: "
+        PrintInteger r1
+        SWI     OS_NewLine
+        Pull    "r0, r1, pc"
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

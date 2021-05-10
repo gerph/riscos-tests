@@ -14,6 +14,7 @@ KeyV_Pressed * 2
 
 ; codes
 KeyV_LShift * 76
+KeyV_CapsLock * 93
 KeyV_P * 48
 KeyV_1 * 17
 KeyV_Tab * 38
@@ -27,6 +28,8 @@ insert_keyv      ROUT
         LDRB    r0, [r10], #1
         TEQ     r0, #'s'
         BEQ     press_lshift
+        TEQ     r0, #'c'
+        BEQ     press_capslock
         TEQ     r0, #'p'
         BEQ     press_p
         TEQ     r0, #'t'
@@ -41,11 +44,15 @@ insert_keyv      ROUT
         BEQ     inkey_delay_medium
         CMP     r0, #'r'
         BEQ     readc
+        CMP     r0, #'-'
+        CMPNE   r0, #'+'
+        BEQ     enable_disable_keyboard
         CMP     r0, #32
         BLS     %FT99
 
         PrintLine "Syntax: keyv {[spw]}*"
         PrintLine "  s = press shift"
+        PrintLine "  c = press caps lock"
         PrintLine "  p = press p"
         PrintLine "  1 = press 1"
         PrintLine "  t = press tab"
@@ -53,6 +60,8 @@ insert_keyv      ROUT
         PrintLine "  m = INKEY(12) [medium]"
         PrintLine "  l = INKEY(35) [long]"
         PrintLine "  r = GET"
+        PrintLine "  - = disable KeyV input"
+        PrintLine "  + = enable KeyV input"
 99
         Pull    "pc"
 
@@ -80,6 +89,14 @@ message
         = "You pressed ", 0
         ALIGN
 
+enable_disable_keyboard SIGNATURE
+; => r0 = '-' to disable, '+' to enable
+        EOR     r1, r0, #'+'            ; - => 6, + => 0
+        MOV     r0, #201                ; Keyboard disable
+        MOV     r2, #0                  ; write
+        SWI     OS_Byte
+        MOV     pc, lr
+
 press_p SIGNATURE
         MOV     r0, #KeyV_P
         B       press
@@ -91,6 +108,9 @@ press_tab SIGNATURE
         B       press
 press_lshift SIGNATURE
         MOV     r0, #KeyV_LShift
+        B       press
+press_capslock SIGNATURE
+        MOV     r0, #KeyV_CapsLock
         B       press
 
 press SIGNATURE

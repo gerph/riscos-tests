@@ -9,10 +9,14 @@
 vdu_char     ROUT
 
         LDRB    r0, [r1], #1
+
         TEQ     r0, #'r'
         BEQ     vdu_readchar
 
-        PrintLine "Use r"
+        TEQ     r0, #'w'
+        BEQ     vdu_window
+
+        PrintLine "Syntax: r|w"
         MOV     pc, lr
 
 
@@ -48,6 +52,116 @@ vdu_readchar SIGNATURE
         PrintMessage "Mode: "
         PrintInteger r2
         SWI     OS_NewLine
+
+        Pull    "pc"
+
+
+        MACRO
+        MOVE    $x, $y
+        MOV     r0, #4
+        LDR     r1, =$x
+        LDR     r2, =$y
+        SWI     XOS_Plot
+        MEND
+
+        MACRO
+        DRAW    $x, $y
+        MOV     r0, #5
+        LDR     r1, =$x
+        LDR     r2, =$y
+        SWI     XOS_Plot
+        MEND
+
+
+; Writing characters in a window
+vdu_window SIGNATURE
+        Push    "lr"
+        LDRB    r9, [r1], #1        ; type of operation
+
+        SWI     OS_WriteI + 18
+        SWI     OS_WriteI + 0
+        SWI     OS_WriteI + 128 + 1 ; GCOL 0, 128+1 (red background)
+        SWI     OS_WriteI + 16      ; CLG
+
+        SWI     OS_WriteI + 18
+        SWI     OS_WriteI + 0
+        SWI     OS_WriteI + 2
+
+; Yellow box bordering the text window
+scrtop * 10 * 16
+        Push    "r1"
+        MOVE    16 * 3 - 4, scrtop - (16 * 2 - 2)
+        DRAW    16 * 9 + 2, scrtop - (16 * 2 - 2)
+        DRAW    16 * 9 + 2, scrtop - (16 * 7 + 4)
+        DRAW    16 * 3 - 4, scrtop - (16 * 7 + 4)
+        DRAW    16 * 3 - 4, scrtop - (16 * 2 - 2)
+        Pull    "r1"
+
+        SWI     OS_WriteS
+        = "window", 0
+        ALIGN
+
+        SWI     XOS_WriteI + 28
+        SWI     XOS_WriteI + 3      ; left
+        SWI     XOS_WriteI + 6      ; bottom
+        SWI     XOS_WriteI + 8      ; right
+        SWI     XOS_WriteI + 2      ; top
+
+        TEQ     r9, #'g'            ; add a graphics window (
+        BEQ     vdu_window_graphics
+
+vdu_window_more
+        TEQ     r9, #'w'            ; wrap text
+        BEQ     vdu_window_wrap
+        TEQ     r9, #'s'            ; scroll down
+        BEQ     vdu_window_scroll
+        TEQ     r9, #'u'            ; scroll up
+        BEQ     vdu_window_scroll_up
+
+        PrintLine "Use wg?(w|s|u)"
+        Pull    "pc"
+
+vdu_window_graphics SIGNATURE
+        MACRO
+        WINDOW  $x0, $y0, $x1, $y1
+        SWI     OS_WriteI + 24
+        SWI     OS_WriteI + (($x0) :AND: 255)
+        SWI     OS_WriteI + ((($x0)>>8) :AND: 255)
+        SWI     OS_WriteI + (($y0) :AND: 255)
+        SWI     OS_WriteI + ((($y0)>>8) :AND: 255)
+        SWI     OS_WriteI + (($x1) :AND: 255)
+        SWI     OS_WriteI + ((($x1)>>8) :AND: 255)
+        SWI     OS_WriteI + (($y1) :AND: 255)
+        SWI     OS_WriteI + ((($y1)>>8) :AND: 255)
+        MEND
+
+        WINDOW  4,4, 16,16
+        LDRB    r9, [r1], #1
+        B       vdu_window_more
+
+vdu_window_wrap SIGNATURE
+        SWI     OS_WriteS
+        = "inside out", 0
+        ALIGN
+
+        Pull    "pc"
+
+vdu_window_scroll SIGNATURE
+        PrintLine "one"
+        PrintLine "2"
+        PrintLine "3"
+        PrintLine "four"
+        PrintLine "5"
+
+        Pull    "pc"
+
+vdu_window_scroll_up SIGNATURE
+        PrintLine "one"
+        PrintLine "2"
+        PrintLine "3"
+        SWI     XOS_WriteI + 30
+        SWI     XOS_WriteI + 11
+        PrintLine "up"
 
         Pull    "pc"
 

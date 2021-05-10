@@ -1,5 +1,6 @@
 | Run the tests
 If "%*0" = "" Then Set Test$Args --show-command --show-output /bin.Capture testcode Else Set Test$Args %*0
+If "%*1" = "" AND "%0" <> "" Then Set Test$Args --show-command --show-output --script "%0" /bin.Capture testcode
 set Test$Dir <Obey$dir>
 
 do perl testcode.test/pl <Test$Args>

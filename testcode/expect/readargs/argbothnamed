@@ -1,0 +1,6 @@
+Input     -b two -a one
+Keywords  a,b
+-----
+0   S  &RMAXXXXX >one<
+0   S  &RMAXXXXX >two<
+

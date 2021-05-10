@@ -54,6 +54,17 @@ extend SIGNATURE
         PrintHex r4
         SWI     OS_NewLine
 
+        LDR     r5, =&78543
+        LDR     r6, =&34587
+        PrintMessage "Leading content: ", 20
+        PrintHex r5
+        SWI     OS_NewLine
+        PrintMessage "Trailing content: ", 20
+        PrintHex r6
+        SWI     OS_NewLine
+        STR     r5, [r2, #0]
+        STR     r6, [r2, #60]
+
         PrintLine "(extend)"
         XSWI    OS_Module, #ModHandReason_ExtendBlock,,, #16
 
@@ -66,8 +77,29 @@ extend SIGNATURE
         PrintHex r4
         SWI     OS_NewLine
 
+        LDR     r7, [r2, #0]
+        LDR     r8, [r2, #60]
+
+        PrintMessage "Leading content: ", 20
+        PrintHex r7
+        SWI     OS_NewLine
+        TEQ     r7, r5
+        BEQ     %FT20
+        PrintLine "ERROR: Mismatched content"
+20
+        PrintMessage "Trailing content: ", 20
+        PrintHex r6
+        SWI     OS_NewLine
+
+        TEQ     r8, r6
+        BEQ     %FT30
+        PrintLine "ERROR: Mismatched content"
+30
+
+
         MOV     pc, lr
 
+        LTORG
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 extend_massively SIGNATURE

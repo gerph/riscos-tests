@@ -1,0 +1,8 @@
+# Replacements for the RMA address
+
+# Pyromaniac:
+s/(&070)[0-9A-Fa-f]{5}/&RMAXXXXX/g
+
+# RISC OS Classic pre-5
+s/(&02)[12][0-9A-Fa-f]{5}/&RMAXXXXX/g
+

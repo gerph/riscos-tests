@@ -71,13 +71,14 @@
 #       - File containing a script of regular expressions and commands to
 #         filter output before comparing to Expectation file. See the
 #         section below on replacement scripts.
-# Creates: <output file>
-#       - Specify a name of a file that is expected to be created.
-#         It will be removed before the test runs, and after it completes.
-#         If it's not present, the test fails.
+# Creates: <output file(s)>
+#       - Specify a name of a file (or files, space separated) that is/are
+#         expected to be created.
+#         They will be removed before the test runs, and after it completes.
+#         If they are not present, the test fails.
 # Length: <length of the created file>
 #       - Expected length of the created file; if it doesn't match, the
-#         test will fail.
+#         test will fail. Must match all files marked as Creates.
 # Removes: <output file>
 #       - Specify a name of a file that is expected to be removed.
 #         An empty file will be created before the test run.
@@ -424,6 +425,7 @@ else
 }
 my %tempnames = ();
 
+
 END {
     for $name (keys %tempnames)
     {
@@ -454,8 +456,7 @@ sub parse_test_script
     my $group = undef;
     my $test = undef;
     my $acc = undef;
-    local *TESTFH;
-
+    my @lines;
     my @groups;
     open(TESTFH, "< $testscript") || die "Cannot open test script '$testscript': $!";
     while (<TESTFH>)
@@ -463,27 +464,34 @@ sub parse_test_script
         chomp;
         next if (/^ *#/ || /^ *$/);
 
+        push @lines, $_;
+    }
+    close(TESTFH);
+
+    my $line;
+    for $line (@lines)
+    {
         my $checker;
         my $minus;
-        my ($cmd, $arg) = (/^([A-Za-z]+): +(.*?) *$/);
+        my ($cmd, $arg) = ($line =~ /^([A-Za-z]+): +(.*?) *$/);
         if (!$cmd)
         {
-            ($minus, $cmd) = (/^(-?)([A-Za-z]+):$/);
+            ($minus, $cmd) = ($line =~ /^(-?)([A-Za-z]+):$/);
         }
         if (!$cmd)
         {
             # Not a base command specification; so try a checker value.
-            ($checker, $cmd, $arg) = (/^([A-Za-z]+):([A-Za-z]+): *(.*?) *$/);
+            ($checker, $cmd, $arg) = ($line =~ /^([A-Za-z]+):([A-Za-z]+): *(.*?) *$/);
             $checker = lc $checker;
             if (!defined $checkers{$checker})
             {
-                die "Unrecognised checker '$checker' in '$_'";
+                die "Unrecognised checker '$checker' in line '$line' whilst reading '$testscript'";
             }
         }
 
         if (!$cmd)
         {
-            die "Cannot understand line '$_'";
+            die "Cannot understand line '$line' whilst reading '$testscript'";
         }
 
         if (defined $checker)
@@ -584,7 +592,7 @@ sub parse_test_script
         }
         else
         {
-            die "Unknown command '$cmd' in '$_'";
+            die "Unknown command '$cmd' in '$line'";
         }
     }
 
@@ -807,7 +815,6 @@ sub read_file
     my $expected = '';
     if (-f "$expect")
     {
-        local *FH;
         open(FH, "< $expect") || die "Cannot read $label '$expect': $!";
         while (<FH>)
         { $expected .= $_; }
@@ -825,7 +832,6 @@ sub read_file
 sub read_command_file
 {
     my ($filename) = @_;
-    local *FH;
     open(FH, "< $filename") || die "Cannot read file '$filename': $!";
 
     my @lines;
@@ -905,7 +911,7 @@ sub apply_replacements
 
         # Replacement action
         my $action = 'die "undefined action!\n";';
-        if ($line =~ m!^s([^a-zA-Z0-9])(.*[^\\]|)\1(.*[^\\]|)\1([mgs]?)$!)
+        if ($line =~ m!^s([^a-zA-Z0-9])(.*[^\\]|)\1(.*[^\\]|)\1([mgs]?i?)$!)
         {
             my $sym = $1;
             my $from = $2;
@@ -957,12 +963,13 @@ sub apply_replacements
     }
 
     # Wrap the replacement code with the line iteratation
+    local $text = $output;
     my $code = "my \$index = 0;\n";
-    $code .= "my (\$trailingblanks) = (\$output =~ /(\\n+)\$/);\n";
+    $code .= "my (\$trailingblanks) = (\$text =~ /(\\n+)\$/);\n";
     $code .= "my \@extralines;\n";
     $code .= "if (length(\$trailingblanks || '') > 0)\n";
     $code .= "{ \@extralines = (('') x (length(\$trailingblanks || '') - 1)); }\n";
-    $code .= "for \$line ((split /\\n/, \$output), \@extralines)\n{\n";
+    $code .= "for \$line ((split /\\n/, \$text), \@extralines)\n{\n";
     $code .= "  \$index++;\n";
     #$code .= "  print \"LINE \$index: \$line\\n\";\n";
     $code .= join("\n", @replacement_code);
@@ -976,8 +983,10 @@ sub apply_replacements
     print "SCRIPT:\n$code\n" if ($debug_replace);
 
     # Run the replacements
+    #print "INPUT:\n$output\n" if ($debug_replace);
     my $content = '';
     eval $code || die "Evaluation of replacements failed: $@";
+    #print "RESULT:\n$content\n" if ($debug_replace);
 
     return $content;
 }
@@ -1018,13 +1027,17 @@ sub run_test
 
     if (defined($creates))
     {
-        $creates = native_filename($creates);
-        unlink($creates);
+        my @create_list = split / +/, $creates;
+        for $created (@create_list)
+        {
+            $created = native_filename($created);
+            unlink $created if (-f $created);
+            rmdir $created if (-d $created);
+        }
     }
     if (defined($removes))
     {
         $removes = native_filename($removes);
-        local *FH;
         # We create the file to check that it's not there at the end.
         open(FH, "> $removes") || die "Cannot create '$removes' for 'removes' check: $!";
         close(FH);
@@ -1094,7 +1107,6 @@ sub run_test
         $input = tempfilename('input');
         my $inputactual = $inputline;
         $inputactual =~ s/\\n/\n/g;
-        local *INFH;
         open(INFH, "> $input") || die "Cannot create temporary input file '$input': $!";
         print INFH "$inputactual\n";
         close(INFH);
@@ -1154,7 +1166,6 @@ sub run_test
         if ($output ne $expected)
         {
             $fail = "Expected output did not match";
-            local *FH;
             open(FH, "> $native_expect-actual") || die "Could not write expected output to '$native_expect-actual': $!";
             print FH $output;
             close(FH);
@@ -1180,16 +1191,22 @@ sub run_test
     }
     if (!$fail && defined $creates)
     {
-        if (!-e $creates)
+        my @create_list = split / +/, $creates;
+        for $created (@create_list)
         {
-            $fail = "Expected to create $creates, but didn't";
-        }
-        elsif (defined $length)
-        {
-            my $gotlength = -s $creates;
-            if ($gotlength != $length)
+            $created = native_filename($created);
+            if (!-e $created)
             {
-                $fail = "Expected output length $length, but got $gotlength";
+                $fail = "Expected to create $created, but didn't";
+            }
+            elsif (defined $length)
+            {
+                # This only really works if there's a single file
+                my $gotlength = -s $created;
+                if ($gotlength != $length)
+                {
+                    $fail = "Expected output length $length, but got $gotlength";
+                }
             }
         }
 
@@ -1225,8 +1242,13 @@ sub run_test
         # Clear away the successfully created file.
         if (!$fail)
         {
-            unlink $creates if (-f $creates);
-            rmdir $creates if (-d $creates);
+            my @create_list = split / +/, $creates;
+            for $created (@create_list)
+            {
+                $created = native_filename($created);
+                unlink $created if (-f $created);
+                rmdir $created if (-d $created);
+            }
         }
     }
     if ($fail)
@@ -1279,7 +1301,6 @@ sub run_test
         $name =~ s/\//_/g;
         my $path = sprintf "%s/%03d_%s.log", $dir, $test->{'test-index'}, $leaf;
 
-        local *FH;
         open(FH, "> $path") || die "Cannot open output save file '$path': $!";
         print FH $output;
         close(FH);
@@ -1332,7 +1353,6 @@ sub write_junitxml
         $nskipped += $group->{'skip'};
     }
 
-    local *FH;
     open(FH, "> $output") || die "Cannot write JunitXML '$output': $!";
 
     print FH "<?xml version=\"1.0\"?>\n";
@@ -1970,7 +1990,6 @@ sub text_check
         my $native_expect = native_filename($args->{'matches'});
         if ($txt ne $expected)
         {
-            local *FH;
             open(FH, "> $native_expect-actual")
                 || die "Cannot write actual output content '$native_expect-actual': $!";
             print FH $txt;
@@ -2060,7 +2079,6 @@ sub binary_check
     if ($args->{'checkfile'})
     {
         my $native_expect = native_filename($args->{'checkfile'});
-        local *FH;
         open(FH, "< $native_expect") || die "Cannot read binary check file '$native_expect': $!\n";
         my @fail;
         while (<FH>)
@@ -2129,7 +2147,6 @@ sub binary_check
         my $native_expect = native_filename($args->{'matches'});
         if ($bin->{'data'} ne $expected)
         {
-            local *FH;
             open(FH, "> $native_expect-actual")
                 || die "Cannot write actual output content '$native_expect-actual': $!";
             print FH $bin->{'data'};

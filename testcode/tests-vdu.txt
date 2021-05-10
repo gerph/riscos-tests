@@ -1,0 +1,14 @@
+#
+# SUT:    VDU system
+# Area:   Text output
+# Class:  Functional
+# Type:   Integration test
+#
+
+Group: VDU: Mode Variables
+Command: $TOOL $FILE $ARG1
+Expect: expect.vdu.$BASE_$ARG1
+
+Test: Mode variables
+File: bin.vdu_mode
+Args: 31

@@ -1,0 +1,5 @@
+Input     -a one -a two
+Keywords  a
+-----
+Error reported: Argument repeated
+
