@@ -18,12 +18,12 @@ bad_return
 
 message
         = "Hello world"
-end
         = 0
+end
 
 return_wrong
         ALIGN
         DCD     1
-        = "R0 on return from OS_Write0 was not correctly set to the terminator"
+        = "R0 on return from OS_Write0 was not correctly set to the terminator", 0
 
         END

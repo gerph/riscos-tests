@@ -1,0 +1,73 @@
+#
+# SUT:    Kernel: Core SWIs
+# Area:   Output, conversions, execution
+# Class:  Functional
+# Type:   Integration test
+#
+
+
+Group: OS_Write SWIs
+Expect: expect.core.hello_world
+
+Test: OS_Write0
+Command: $TOOL bin.hello_world
+
+Test: OS_WriteS
+Command: $TOOL bin.hello_world_s
+
+Test: OS_WriteN
+Command: $TOOL bin.hello_world_n
+
+Test: OS_WriteC
+Command: $TOOL bin.hello_world_c
+
+Test: OS_Write &100
+Command: $TOOL bin.hello_world_i
+
+
+Group: OS_PrettyPrint
+
+Test: OS_PrettyPrint
+Command: $TOOL bin.hello_world_pp
+Expect: expect.core.hello_world
+
+
+Group: Conversions
+Command: $TOOL $FILE
+Expect: expect.core.$BASE
+
+Test: OS_BinaryToDecimal
+File: bin.binary_to_decimal
+
+Test: OS_ConvertHex
+File: bin.converthex
+
+Test: OS_ConvertCardinal
+File: bin.convertcardinal
+
+Test: OS_ConvertInteger
+File: bin.convertinteger
+
+Test: OS_ConvertSpacedCardinal
+File: bin.convertspacedcardinal
+
+Test: OS_ConvertSpacedInteger
+File: bin.convertspacedinteger
+
+Test: OS_ConvertBinary
+File: bin.convertbinary
+
+Test: OS_Convert(Fixed)FileSize
+File: bin.convertfilesize
+
+Test: OS_Convert(Fixed)NetStation
+File: bin.convertnetstation
+
+Test: OS_ReadUnsigned
+File: bin.readunsigned
+
+Test: OS_SWINumberToString
+File: bin.swifromnumber
+
+Test: OS_SWINumberFromString
+File: bin.swifromstring

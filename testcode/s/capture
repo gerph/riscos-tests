@@ -1,0 +1,145 @@
+; This is just a test harness that captures the errors and returns successfully.
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+        GET     hdr.macros
+        GET     hdr.envnumbers
+
+
+        MACRO
+        EnvStore $envnum, $handler, $workspace, $buffer
+        XSWI    OS_ChangeEnvironment, $envnum, $handler, $workspace, $buffer
+        ADRL    lr, old_environment
+        ADD     lr, lr, #$envnum * 3 * 4 ; r0 -> storage location
+        STR     r1, [lr, #0]
+        STR     r2, [lr, #4]
+        STR     r3, [lr, #8]
+        MEND
+
+        MACRO
+        EnvStoreDefault $envnum
+        XSWI    OS_ReadDefaultHandler, $envnum
+        EnvStore $envnum, r1, r2, r3
+        MEND
+
+        MACRO
+        EnvRestore $envnum
+        ADRL    lr, old_environment
+        ADD     lr, lr, #$envnum * 3 * 4 ; r0 -> storage location
+        LDR     r1, [lr, #0]
+        LDR     r2, [lr, #4]
+        LDR     r3, [lr, #8]
+        XSWI    OS_ChangeEnvironment, $envnum
+        MEND
+
+
+capture ROUT
+        STR     sp, old_sp
+        Push    "r0-r10, lr"
+
+30
+        ; skip the spaces
+        LDRB    r0, [r1], #1
+        CMP     r0, #' '
+        BEQ     %BT30
+        BLO     %FT95
+        SUB     r10, r1, #1
+
+        BL      env_setup
+
+        MOV     r0, r10
+        SWI     OS_CLI
+
+        BL      env_restore
+99
+        CMP     r0, r0                      ; clear V
+        Pull    "r0-r10, pc"
+
+95
+        PrintLine "Syntax: capture <command>"
+        B       %BT99
+
+env_setup SIGNATURE
+        Push    "r0-r5, lr"
+        STR     r12, old_r12
+        EnvStore ExitHandler, ^env_exit, 0, 0
+        EnvStore ErrorHandler, ^env_error, 0, ^error_buffer
+        EnvStoreDefault DataAbortHandler
+        EnvStoreDefault PrefetchAbortHandler
+
+        XSWI    XOS_ChangeRedirection, -1, -1
+        STR     r1, redirection_output_handle
+        TEQ     r1, #0
+        BEQ     %FT80
+
+        ; Read the name of the redirection handle, as it may be closed if there's an error
+        XSWI    OS_Args, #7,, ^redirection_output_filename, #?redirection_output_filename
+
+80
+        Pull    "r0-r5, pc"
+
+env_restore SIGNATURE
+        Push    "r0-r3, lr"
+        LDR     r12, old_r12
+        EnvRestore ExitHandler
+        EnvRestore ErrorHandler
+        EnvRestore DataAbortHandler
+        EnvRestore PrefetchAbortHandler
+
+        XSWI    XOS_ChangeRedirection, -1, -1
+        TEQ     r1, #0
+        BNE     %FT90                               ; there's a redirection in place; leave things alone
+        LDR     r0, redirection_output_handle
+        TEQ     r0, #0
+        BEQ     %FT90                               ; no redirection in place before; leave things alone
+
+; We're not redirecting now, but we were before. RISC OS closed the handles on us.
+; We're going to undo that event.
+
+        XSWI    XOS_Find, #&C0, ^redirection_output_filename ; open for update
+        BVS     %FT90
+        TEQ     r0, #0
+        BEQ     %FT90
+        MOV     r1, r0
+        XSWI    OS_Args, #2                         ; read extent
+        XSWI    OS_Args, #1                         ; set pointer
+
+; We're now at the end of the file, so we can restore the redirection to it
+        XSWI    XOS_ChangeRedirection, -1
+
+90
+        Pull    "r0-r3, pc"
+
+env_exit SIGNATURE
+        LDR     sp, old_sp
+        BL      env_restore
+        SWI     OS_Exit
+
+env_error SIGNATURE
+        LDR     sp, old_sp
+
+        BL      env_restore
+
+; This must happen AFTER the env_restore because RISC OS Classic restores the redirection handles
+; on an OS_GenerateError or OS_Exit and closes the files, and we're going to undo that inside the
+; env_restore so that when this message is written, it ends up in the file still.
+        ADRL    r0, error_buffer + 4
+        PrintMessage "ERROR: "
+        PrintError
+        SWI     OS_NewLine
+
+        SWI     OS_Exit
+
+
+redirection_output_handle DCD 0
+old_sp  DCD     0
+old_r12 DCD     0
+old_environment % 16*4*3
+
+error_buffer % 260
+
+redirection_output_filename % 256
+
+        END

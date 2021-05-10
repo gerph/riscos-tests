@@ -26,16 +26,20 @@ convertnetstation    ROUT
         Convert 0, 0
         Convert 0, 200
         Convert 0, 254
+        Convert 0, 255
         Convert 1, 0
         Convert 1, 200
         Convert 1, 254
+        Convert 255, 1
+        Convert 256, 1
 
         LDMFD   sp!, {pc}
 
 print_netstation
         ADR     r1, buffer
         MOV     r2, #buffer_size
-        SWI     OS_ConvertNetStation
+        SWI     XOS_ConvertNetStation
+        BVS     print_error
         SWI     OS_Write0
         SWI     OS_NewLine
         MOV     pc, lr
@@ -43,7 +47,17 @@ print_netstation
 print_fixednetstation
         ADR     r1, buffer
         MOV     r2, #buffer_size
-        SWI     OS_ConvertFixedNetStation
+        SWI     XOS_ConvertFixedNetStation
+        BVS     print_error
+        SWI     OS_Write0
+        SWI     OS_NewLine
+        MOV     pc, lr
+
+print_error
+        SWI     OS_WriteS
+        = "ERROR: ", 0
+        ALIGN
+        ADD     r0, r0, #4
         SWI     OS_Write0
         SWI     OS_NewLine
         MOV     pc, lr

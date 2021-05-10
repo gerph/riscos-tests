@@ -114,8 +114,41 @@ printbuffersize * 20
 
 ; -------------------------------------------------------------------------
         MACRO
+        PrintStringCR   $regnum, $width
+        STMFD   sp!, {r0-r1}
+    [ "$regnum" <> "r0"
+        MOV     r0, $regnum
+    ]
+        ; find the length we'll write
+    [ "$regnum" <> "r1"
+        MOV     r1, r0
+    ]
+10
+        LDRB    r14, [r1], #1
+        TEQ     r14, #13
+        BNE     %BT10
+        ; r1-> the terminator
+        SUB     r1, r1, r0
+        SUB     r1, r1, #1                      ; don't print the terminator
+        SWI     OS_WriteN
+    [ "$width" <> ""
+    [ $width > 0
+        RSBS    r1, r1, #$width - 1
+40
+        SWIPL   OS_WriteI + ' '
+        SUBS    r1, r1, #1
+        BPL     %BT40
+    ]
+    ]
+        LDMFD   sp!, {r0-r1}
+        MEND
+
+; -------------------------------------------------------------------------
+        MACRO
         PrintLine    $message
+    [ "$message" <> ""
         PrintMessage "$message", 0
+    ]
         SWI     OS_NewLine
         MEND
 
@@ -195,6 +228,18 @@ printbuffersize * 20
         SWI     OS_NewLine
 
         LDMFD   sp!, {r0-r5}
+        MEND
+
+
+; -------------------------------------------------------------------------
+        MACRO
+$label  PrintBitChar $reg, $bit, $onchar
+        Push    "r0, lr"
+$label  TST     $reg, #1<<$bit
+        MOVNE   r0, #$onchar
+        MOVEQ   r0, #' '
+        SWI     XOS_WriteC
+        Pull    "r0, lr"
         MEND
 
 

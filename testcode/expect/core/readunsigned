@@ -1,0 +1,181 @@
+--- String: ''
+    Base:  10
+    Flags: &00000000
+    Max:   0
+VS return: Number not recognised
+
+--- String: '&'
+    Base:  10
+    Flags: &00000000
+    Max:   0
+VS return: Number not recognised
+
+--- String: '2_'
+    Base:  10
+    Flags: &00000000
+    Max:   0
+VS return: Number not recognised
+
+--- String: 'bob'
+    Base:  10
+    Flags: &00000000
+    Max:   0
+VS return: Number not recognised
+
+--- String: '1234'
+    Base:  10
+    Flags: &00000000
+    Max:   0
+Consumed:   4
+Terminator: 0
+Value:      &000004D2 1234
+
+--- String: '&1234'
+    Base:  10
+    Flags: &00000000
+    Max:   0
+Consumed:   5
+Terminator: 0
+Value:      &00001234 4660
+
+--- String: '2_10101010'
+    Base:  10
+    Flags: &00000000
+    Max:   0
+Consumed:   10
+Terminator: 0
+Value:      &000000AA 170
+
+--- String: '1234'
+    Base:  16
+    Flags: &00000000
+    Max:   0
+Consumed:   4
+Terminator: 0
+Value:      &00001234 4660
+
+--- String: '1234ab'
+    Base:  16
+    Flags: &00000000
+    Max:   0
+Consumed:   6
+Terminator: 0
+Value:      &001234AB 1193131
+
+--- String: '2_1012'
+    Base:  10
+    Flags: &00000000
+    Max:   0
+Consumed:   5
+Terminator: 2 50
+Value:      &00000005 5
+
+--- String: '1234A'
+    Base:  10
+    Flags: &00000000
+    Max:   0
+Consumed:   4
+Terminator: A 65
+Value:      &000004D2 1234
+
+--- String: '123'
+    Base:  10
+    Flags: &40000000
+    Max:   0
+Consumed:   3
+Terminator: 0
+Value:      &0000007B 123
+
+--- String: '254'
+    Base:  10
+    Flags: &40000000
+    Max:   0
+Consumed:   3
+Terminator: 0
+Value:      &000000FE 254
+
+--- String: '255'
+    Base:  10
+    Flags: &40000000
+    Max:   0
+Consumed:   3
+Terminator: 0
+Value:      &000000FF 255
+
+--- String: '256'
+    Base:  10
+    Flags: &40000000
+    Max:   0
+VS return: Number too big
+
+--- String: '123'
+    Base:  10
+    Flags: &20000000
+    Max:   123
+Consumed:   3
+Terminator: 0
+Value:      &0000007B 123
+
+--- String: '124'
+    Base:  10
+    Flags: &20000000
+    Max:   123
+VS return: Number too big
+
+--- String: '123'
+    Base:  10
+    Flags: &80000000
+    Max:   123
+Consumed:   3
+Terminator: 0
+Value:      &0000007B 123
+
+--- String: '123 '
+    Base:  10
+    Flags: &80000000
+    Max:   123
+Consumed:   3
+Terminator: 32
+Value:      &0000007B 123
+
+--- String: '123A'
+    Base:  10
+    Flags: &80000000
+    Max:   123
+VS return: Number not recognised
+
+--- String: ' 123'
+    Base:  10
+    Flags: &00000000
+    Max:   255
+Consumed:   4
+Terminator: 0
+Value:      &0000007B 123
+
+--- String: '1234 5'
+    Base:  10
+    Flags: &00000000
+    Max:   0
+Consumed:   4
+Terminator: 32
+Value:      &000004D2 1234
+
+--- String: '&1234 5'
+    Base:  10
+    Flags: &00000000
+    Max:   0
+Consumed:   5
+Terminator: 32
+Value:      &00001234 4660
+
+--- String: '2_10101010 5'
+    Base:  10
+    Flags: &00000000
+    Max:   0
+Consumed:   10
+Terminator: 32
+Value:      &000000AA 170
+
+++++++
+Passed internal checks
+

@@ -1,0 +1,28 @@
+ERROR: Bad station number
+ERROR: Bad station number
+
+200
+    200
+
+254
+    254
+
+255
+    255
+
+ERROR: Bad station number
+ERROR: Bad station number
+
+1.200
+  1.200
+
+1.254
+  1.254
+
+255.1
+255.001
+
+ERROR: Bad network number
+ERROR: Bad network number
+
+

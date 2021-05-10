@@ -75,7 +75,7 @@ $label  MSR     CPSR_f, #(1<<28)
         XSWI_param $reg, $p
         LCLS    arg
     [ "$p" <> ""
-     [ "$p" :LEFT: 1 = "R" :LOR: "$p" :LEFT: 1 = "r"
+     [ ("$p" :LEFT: 1 = "R" :LOR: "$p" :LEFT: 1 = "r") :LAND: (:LEN: "$p" < 4)
         MOV     $reg, $p
      |
       [ "$p" :LEFT: 1 = "^"
@@ -89,7 +89,7 @@ arg     SETS    "$p" :RIGHT: ((:LEN: "$p") - 1)
 arg     SETS    "$p" :RIGHT: ((:LEN: "$p") - 1)
         LDR     $reg, =$arg
         |
-         [ $p < 256
+         [ ($p) < 256
         MOV     $reg, #$p
          |
         LDR     $reg, =$p
