@@ -102,7 +102,7 @@ printbuffersize * 20
     [ "$width" <> ""
     [ $width > 0
         SUB     r1, r0, r1
-        RSBS    r1, r1, #$width - 1
+        RSBS    r1, r1, #$width
 40
         SWIPL   OS_WriteI + ' '
         SUBS    r1, r1, #1

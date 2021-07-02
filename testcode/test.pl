@@ -1124,11 +1124,12 @@ sub run_test
         my $start_time = time();
 
         # Set up the environment that we run the command under.
-        my %oldenv = %ENV;
+        my %oldenv = ();
         if (defined $test->{'env'})
         {
             for $key (keys %{$test->{'env'}})
             {
+                $oldenv{$key} = $ENV{$key};
                 $ENV{$key} = $test->{'env'}->{$key};
             }
         }
@@ -1136,7 +1137,18 @@ sub run_test
         $output = `$cmdtorun`;
         $status = $?;
         $test->{'duration'} = time() - $start_time;
-        %ENV = %oldenv;
+
+        for $key (keys %{$test->{'env'}})
+        {
+            if (defined $oldenv{$key})
+            {
+                $ENV{$key} = $oldenv{$key};
+            }
+            else
+            {
+                delete $ENV{$key};
+            }
+        }
     }
     my $sig = ($status & 255);
     my $rc = $sig ? 128+$sig : ($status >> 8);
@@ -2169,7 +2181,7 @@ sub binary_check
 
 # Execute in the directory requested
 # NOTE: On RISC OS, this is destructive, as there is only one CWD.
-chdir "$dir";
+chdir "$dir" || die "Cannot change directory to '$dir': $!";
 
 # Ensure we output immediately, so that stderr appears in a sane place
 $| = 1;

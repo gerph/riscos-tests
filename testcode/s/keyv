@@ -30,8 +30,12 @@ insert_keyv      ROUT
         BEQ     press_lshift
         TEQ     r0, #'c'
         BEQ     press_capslock
+        TEQ     r0, #'C'
+        BEQ     release_capslock
         TEQ     r0, #'p'
         BEQ     press_p
+        TEQ     r0, #'P'
+        BEQ     release_p
         TEQ     r0, #'t'
         BEQ     press_tab
         TEQ     r0, #'1'
@@ -83,7 +87,7 @@ readc SIGNATURE
         MOV     r0, r1
         SWI     OS_WriteC
         SWI     OS_NewLine
-        Pull    "pc"
+        MOV     pc, lr
 
 message
         = "You pressed ", 0
@@ -100,6 +104,9 @@ enable_disable_keyboard SIGNATURE
 press_p SIGNATURE
         MOV     r0, #KeyV_P
         B       press
+release_p SIGNATURE
+        MOV     r0, #KeyV_P
+        B       release
 press_1 SIGNATURE
         MOV     r0, #KeyV_1
         B       press
@@ -112,10 +119,20 @@ press_lshift SIGNATURE
 press_capslock SIGNATURE
         MOV     r0, #KeyV_CapsLock
         B       press
+release_capslock SIGNATURE
+        MOV     r0, #KeyV_CapsLock
+        B       release
 
 press SIGNATURE
         MOV     r1, r0
         MOV     r0, #KeyV_Pressed
+        MOV     r9, #KeyV
+        SWI     OS_CallAVector
+        MOV     pc, lr
+
+release SIGNATURE
+        MOV     r1, r0
+        MOV     r0, #KeyV_Released
         MOV     r9, #KeyV
         SWI     OS_CallAVector
         MOV     pc, lr

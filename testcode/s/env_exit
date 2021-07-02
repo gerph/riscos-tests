@@ -23,6 +23,11 @@ env_exit  ROUT
         PrintLine "Set exit handler"
         XSWI    OS_ChangeEnvironment, #ExitHandler, ^myhandler, #&77, #&95
         BL      print_handler
+        TEQ     r3, #&95    ; ignored registers must be preserved
+        BEQ     %FT20
+        PrintLine "ERROR: Ignored registers were not preserved!"
+        B       %FT90
+20
 
         PrintLine "Read the current handler"
 
@@ -32,6 +37,7 @@ env_exit  ROUT
         SWI     OS_Exit
 
         PrintLine "ERROR: OS_Exit returned?!"
+90
         Pull    "pc"
 
 

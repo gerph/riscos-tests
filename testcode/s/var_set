@@ -3,14 +3,64 @@
 
         GET     hdr.swis
         GET     hdr.printmacros
+        GET     hdr.macros
+
+; variable types
+TYPE_STRING     * 0
+TYPE_NATURAL    * 0
+TYPE_NUMBER     * 1
+TYPE_MACRO      * 2
+TYPE_EXPANDED   * 3
+TYPE_LITERAL    * 4
+TYPE_CODE       * 16
+
 
                 ^ 0, r12
 
 printbuffer     #   printbuffersize
 valuebuffer     #   256
 
-set_var_value  ROUT
 
+set_var_value  ROUT
+        MOV     r9, #TYPE_STRING        ; default type = string (will GSTrans first)
+
+        LDRB    r0, [r1]                ; what type of set is this?
+        TEQ     r0, #'+'                ; this is one that we want to set the type of.
+        BNE     %FT09
+
+        LDRB    r0, [r1, #1]            ; read the variable type
+        TEQ     r0, #'m'                ; macro
+        MOVEQ   r9, #TYPE_MACRO
+        BEQ     %FT07
+
+        TEQ     r0, #'e'                ; expanded
+        MOVEQ   r9, #TYPE_EXPANDED
+        BEQ     %FT07
+
+        TEQ     r0, #'l'                ; literal
+        MOVEQ   r9, #TYPE_LITERAL
+        BEQ     %FT07
+
+        TEQ     r0, #'n'                ; number
+        MOVEQ   r9, #TYPE_NUMBER
+        BEQ     %FT07
+
+syntax
+        PrintLine "Syntax: var_set -<variable>"
+        PrintLine "        var_set [+n|+m|+e|+l] <variable> <value>"
+        MOV     pc, lr
+
+; skip to variable name
+07
+        LDRB    r0, [r1, #2]!           ; skip -#; next char should be a space
+        TEQ     r0, #' '                ; ok
+        BNE     syntax
+08
+        LDRB    r0, [r1, #1]!           ; next char might be a space
+        TEQ     r0, #' '
+        BEQ     %BT08
+
+09
         MOV     r5, r1                  ; R5 => the variable to set
 
 ; find the limits in the buffer
@@ -32,7 +82,25 @@ set_var_value  ROUT
         MOVEQ   r7, #-1
         BEQ     %FT20
 
-; Work out how long this is
+        TEQ     r9, #TYPE_NUMBER
+        BNE     %FT14
+
+; they wanted a number, so we need to read it
+        MOV     r8, #0
+        LDRB    r0, [r6]
+        TEQ     r0, #'-'
+        MOVEQ   r8, #1                  ; flag as negative
+        ADDEQ   r6, r6, #1
+        XSWI    OS_ReadUnsigned, #10 :OR: (1<<31), r6 ; terminates on control character
+        ADR     r6, valuebuffer + 8
+        TEQ     r8, #1
+        RSBEQ   r2, r2, #0
+        STR     r2, [r6]
+        MOV     r7, #4
+        B       %FT20
+
+14
+; Work out how long this string is
         MOV     r1, r6
 15
         LDRB    r0, [r1], #1
@@ -47,6 +115,10 @@ set_var_value  ROUT
         PrintString r5
         SWI     OS_NewLine
 
+        PrintMessage "Type: ", 16
+        PrintInteger r9
+        SWI     OS_NewLine
+
         PrintMessage "Length: ", 16
         PrintInteger r7
         SWI     OS_NewLine
@@ -57,7 +129,13 @@ set_var_value  ROUT
         B       %FT40
 30
         PrintMessage "To Value: ", 16
+        TEQ     r9, #TYPE_NUMBER
+        BEQ     %FT35
         PrintString r6
+        B       %FT40
+35
+        LDR     r0, [r6]
+        PrintInteger r0
 40
         SWI     OS_NewLine
 
@@ -66,17 +144,28 @@ set_var_value  ROUT
         MOV     r1, r6
         MOV     r2, r7
         MOV     r3, #0
-        MOV     r4, #0      ; type string (will GSTrans first)
+        MOV     r4, r9
         SWI     OS_SetVarVal
 
         PrintLine "------"
 
+; Clear the buffer to check that the content was set properly
+        LDR     r0, =&55555555
+        ADR     r1, valuebuffer
+        STR     r0, [r1], #4
+        STR     r0, [r1], #4
+        STR     r0, [r1], #4
+        MOV     r0, #0
+        STR     r0, [r1], #4
+
+        MOV     r4, #TYPE_NATURAL
+
+50
 ; Now show the value, so we can see if it was done properly
         MOV     r0, r5
         ADR     r1, valuebuffer
         MOV     r2, #?valuebuffer
         MOV     r3, #0
-        MOV     r4, #0
         SWI     OS_ReadVarVal
 
         PrintMessage "Length: ", 16
@@ -94,11 +183,28 @@ set_var_value  ROUT
         SWI     OS_NewLine
 
         PrintMessage "Value: ", 16
+        TEQ     r4, #TYPE_NUMBER
+        BNE     %FT60
+
+        LDR     r0, [r1]
+        PrintInteger r0
+        B       %FT65
+60
         MOV     r0, #0
         STRB    r0, [r1, r2]
         PrintString r1
+65
         SWI     OS_NewLine
 
+; If this wasn't a string, try to expand it
+        TEQ     r4, #TYPE_STRING
+        BEQ     %FT90
+
+        PrintLine "------ Expanding variable ------"
+        MOV     r4, #TYPE_EXPANDED
+        B       %BT50
+
+90
         MOV     pc, lr
 
 null

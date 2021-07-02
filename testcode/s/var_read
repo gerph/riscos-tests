@@ -15,6 +15,9 @@ read_var_value  ROUT
         PrintMessage "ReadVarValue: ", 16
         PrintString r5
         SWI     OS_NewLine
+        MOV     r7, #0                  ; context value
+
+        PrintLine "----"
 
 ; Ensure the buffer is initialised with a value so we know it's not
 ; corrupted.
@@ -25,7 +28,7 @@ read_var_value  ROUT
         MOV     r0, r5
         ADR     r1, valuebuffer
         MOV     r2, #-1
-        MOV     r3, #0
+        MOV     r3, r7
         MOV     r4, #0
         SWI     XOS_ReadVarVal
 
@@ -55,13 +58,12 @@ read_var_value  ROUT
         SWI     OS_NewLine
 40
 
-        PrintLine "----"
 
 ; Now read the variable itself
         MOV     r0, r5
         ADR     r1, valuebuffer
         MOV     r2, #?valuebuffer
-        MOV     r3, #0
+        MOV     r3, r7
         MOV     r4, #0
         SWI     OS_ReadVarVal
 
@@ -74,9 +76,10 @@ read_var_value  ROUT
         SWI     OS_NewLine
 
         PrintMessage "Context: ", 16
-        TEQ     r3, #0
-        ADREQ   r3, null
-        PrintString r3
+        MOV     r0, r3
+        TEQ     r0, #0
+        ADREQ   r0, null
+        PrintString r0
         SWI     OS_NewLine
 
         PrintMessage "Value: ", 16
@@ -85,6 +88,29 @@ read_var_value  ROUT
         PrintString r1
         SWI     OS_NewLine
 
+; Let's see if there are more to read
+
+; Ensure the buffer is initialised with a value so we know it's not
+; corrupted.
+        LDR     r0, magic
+        STR     r0, valuebuffer
+
+        MOV     r0, r5
+        ADR     r1, valuebuffer
+        MOV     r2, #-1
+        MOV     r7, r3
+        MOV     r4, #0
+        SWI     XOS_ReadVarVal
+        BVC     %FT90               ; if it didn't error, that's weird, so we give up.
+        TEQ     r2, #0
+        BEQ     %FT90
+
+; There is another variable to come... let's show it.
+        PrintLine "----"
+        B       %BT20
+
+90
+        CMP     r0, r0              ; clear V flag
         MOV     pc, lr
 
 magic   DCD     &61626364
