@@ -1,6 +1,6 @@
 --- Listening on TCP
 Creating TCP socket
-Socket created: 0
+Socket created: X
 Making address reusable
 Binding
 Listening
@@ -15,7 +15,7 @@ IPv6 address: 0000:0000:0000:0000:0000:0000:0000:0000
 ScopeID:      0
 --- Connect to the listener
 Create a new TCP socket
-Socket created: 1
+Socket created: X
 Connect to the listener address
 Getting our socket name
 Socket address length: 28
@@ -40,7 +40,7 @@ ScopeID:      0
 --- Accept connection
 Socket address length: 28
 Accepted
-New socket: 2
+New socket: X
 Peer address:
 New style sockaddr
 Size:         28
@@ -49,3 +49,5 @@ Port number:  OTHER-PORT
 FlowInfo:     &00000000
 IPv6 address: 0000:0000:0000:0000:0000:0000:0000:0001
 ScopeID:      0
+--- Closing listening socket
+Closing socket: X

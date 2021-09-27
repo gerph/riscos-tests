@@ -31,15 +31,5 @@ Size:         16
 Family:       2
 Port number:  OUR-PORT
 IPv4 address: 127.0.0.1
---- Accept connection
-Socket address length: 16
-Accepted
-New socket: X
-Peer address:
-New style sockaddr
-Size:         16
-Family:       2
-Port number:  OTHER-PORT
-IPv4 address: 127.0.0.1
 --- Closing listening socket
 Closing socket: X

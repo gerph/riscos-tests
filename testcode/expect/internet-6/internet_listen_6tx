@@ -1,6 +1,6 @@
 --- Listening on TCP
 Creating TCP socket
-Socket created: 0
+Socket created: X
 Making address reusable
 Binding
 Listening
@@ -9,7 +9,9 @@ Socket address length: 28
 New style sockaddr
 Size:         28
 Family:       24
-Port number:  9901
+Port number:  OUR-PORT
 FlowInfo:     &00000000
 IPv6 address: 0000:0000:0000:0000:0000:0000:0000:0000
 ScopeID:      0
+--- Closing listening socket
+Closing socket: X

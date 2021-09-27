@@ -1,5 +1,5 @@
-Creating TCP socket
-Socket created: X
+Creating TCP socket using IPv6
+Socket created: 0
 Connecting
 Connected
 Write header

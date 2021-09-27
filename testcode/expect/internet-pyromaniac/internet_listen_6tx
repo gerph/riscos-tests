@@ -5,11 +5,13 @@ Making address reusable
 Binding
 Listening
 Getting our socket name
-Socket address length: 16
+Socket address length: 28
 New style sockaddr
-Size:         16
-Family:       2
+Size:         28
+Family:       24
 Port number:  OUR-PORT
-IPv4 address: 0.0.0.0
+FlowInfo:     &00000000
+IPv6 address: 0000:0000:0000:0000:0000:0000:0000:0000
+ScopeID:      0
 --- Closing listening socket
 Closing socket: X

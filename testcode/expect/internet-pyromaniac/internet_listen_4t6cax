@@ -11,9 +11,8 @@ Size:         16
 Family:       2
 Port number:  OUR-PORT
 IPv4 address: 0.0.0.0
---- Listening on TCP
-Creating TCP socket
+--- Connect to the listener
+Create a new TCP socket
 Socket created: X
-Making address reusable
-Binding
-Error: Socket error 48: EADDRINUSE: Address already in use (Error number &20e30)
+Connect to the listener address
+Error: Socket error 61: ECONNREFUSED: Connection refused (Error number &20e3d)

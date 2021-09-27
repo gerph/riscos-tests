@@ -11,9 +11,9 @@ Size:         16
 Family:       2
 Port number:  OUR-PORT
 IPv4 address: 0.0.0.0
---- Listening on TCP
-Creating TCP socket
-Socket created: X
-Making address reusable
-Binding
-Error: Socket error 48: EADDRINUSE: Address already in use (Error number &20e30)
+--- Closing listening socket
+Closing socket: X
+--- Closing listening socket
+Closing socket: X
+ERROR: [&00000009] Bad file descriptor
+

@@ -1,6 +1,6 @@
 --- Listening on TCP
 Creating TCP socket
-Socket created: 0
+Socket created: X
 Making address reusable
 Binding
 Listening
@@ -13,7 +13,7 @@ Port number:  OUR-PORT
 IPv4 address: 0.0.0.0
 --- Connect to the listener
 Create a new TCP socket
-Socket created: 1
+Socket created: X
 Connect to the listener address
 Getting our socket name
 Socket address length: 16
@@ -31,3 +31,15 @@ Size:         16
 Family:       2
 Port number:  OUR-PORT
 IPv4 address: 127.0.0.1
+--- Accept connection
+Socket address length: 16
+Accepted
+New socket: X
+Peer address:
+New style sockaddr
+Size:         16
+Family:       2
+Port number:  OTHER-PORT
+IPv4 address: 127.0.0.1
+--- Closing listening socket
+Closing socket: X

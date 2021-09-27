@@ -1,6 +1,10 @@
-s/^\r?(Configuration size:) \d+/$1 ###/
+s/\r//
+s/Socket created: \d+/Socket created: X/
+s/Closing socket: \d+/Closing socket: X/
 
-s/^\r?((Interface|Family|IPv4 address|IPv6 address): *)[^ ].*/$1XXX/
+s/^(Configuration size:) \d+/$1 ###/
+
+s/^((Interface|Family|IPv4 address|IPv6 address): *)[^ ].*/$1XXX/
 
 # Stop as soon as we hit the end of the first interface
-/^\r?-/ q
+/^-/ q

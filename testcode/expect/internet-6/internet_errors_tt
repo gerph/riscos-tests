@@ -16,4 +16,5 @@ Creating TCP socket
 Socket created: X
 Making address reusable
 Binding
-Error: Socket error 48: EADDRINUSE: Address already in use (Error number &20e30)
+ERROR: [&00000030] Address already in use
+

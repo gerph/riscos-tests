@@ -1,0 +1,4 @@
+--- Closing listening socket
+Closing socket: -1
+ERROR: [&00000009] Bad file descriptor
+
