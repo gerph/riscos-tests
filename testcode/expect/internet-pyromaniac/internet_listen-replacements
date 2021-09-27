@@ -1,0 +1,2 @@
+s/Port number:  9901/Port number:  OUR-PORT/
+s/Port number:  \d+/Port number:  OTHER-PORT/

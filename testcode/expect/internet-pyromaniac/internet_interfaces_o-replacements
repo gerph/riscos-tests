@@ -1,0 +1,6 @@
+s/^\r?(Configuration size:) \d+/$1 ###/
+
+s/^\r?((Interface|Family|IPv4 address|IPv6 address): *)[^ ].*/$1XXX/
+
+# Stop as soon as we hit the end of the first interface
+/^\r?-/ q

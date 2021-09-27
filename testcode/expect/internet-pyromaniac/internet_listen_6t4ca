@@ -1,0 +1,47 @@
+--- Listening on TCP
+Creating TCP socket
+Socket created: 0
+Making address reusable
+Binding
+Listening
+Getting our socket name
+Socket address length: 28
+New style sockaddr
+Size:         28
+Family:       24
+Port number:  OUR-PORT
+FlowInfo:     &00000000
+IPv6 address: 0000:0000:0000:0000:0000:0000:0000:0000
+ScopeID:      0
+--- Connect to the listener
+Create a new TCP socket
+Socket created: 1
+Connect to the listener address
+Getting our socket name
+Socket address length: 16
+OUR address:
+New style sockaddr
+Size:         16
+Family:       2
+Port number:  OTHER-PORT
+IPv4 address: 127.0.0.1
+Getting peer name
+Socket address length: 16
+THEIR address:
+New style sockaddr
+Size:         16
+Family:       2
+Port number:  OUR-PORT
+IPv4 address: 127.0.0.1
+--- Accept connection
+Socket address length: 28
+Accepted
+New socket: 2
+Peer address:
+New style sockaddr
+Size:         28
+Family:       24
+Port number:  OTHER-PORT
+FlowInfo:     &00000000
+IPv6 address: 0000:0000:0000:0000:0000:ffff:7f00:0001
+ScopeID:      0

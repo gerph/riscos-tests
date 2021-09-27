@@ -10,6 +10,7 @@ IPPROTO_TCP * 6    ; tcp
 IPPROTO_UDP * 17   ; user datagram protocol
 SOL_SOCKET * &FFFF
 SO_REUSEADDR * 0x0004   ; allow local address reuse
+SO_REUSEPORT * 0x0200   ; allow local address and port reuse
 IOCTL_SIOCOGIFCONF * 0xc0086914
 IOCTL_SIOCGIFCONF * 0xc0086960
 

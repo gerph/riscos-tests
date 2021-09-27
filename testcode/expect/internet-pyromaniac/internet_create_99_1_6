@@ -1,0 +1,2 @@
+Socket_Create 99, 1, 6
+Error: Unknown address family 99 (Error number &20e2b)

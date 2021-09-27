@@ -1,0 +1,3 @@
+--- Closing listening socket
+Closing socket: -1
+Error: Bad socket number (4294967295 outside range) (Error number &20e09)

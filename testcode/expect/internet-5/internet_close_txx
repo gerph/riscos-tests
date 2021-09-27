@@ -1,0 +1,19 @@
+--- Listening on TCP
+Creating TCP socket
+Socket created: X
+Making address reusable
+Binding
+Listening
+Getting our socket name
+Socket address length: 16
+New style sockaddr
+Size:         16
+Family:       2
+Port number:  OUR-PORT
+IPv4 address: 0.0.0.0
+--- Closing listening socket
+Closing socket: X
+--- Closing listening socket
+Closing socket: X
+ERROR: [&00000009] Bad file descriptor
+

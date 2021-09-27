@@ -1,0 +1,8 @@
+--- Listening on UDP
+Creating UDP socket
+Socket created: X
+Making address reusable
+Binding
+--- Closing listening socket
+Closing socket: X
+

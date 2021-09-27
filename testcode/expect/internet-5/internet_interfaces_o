@@ -1,0 +1,16 @@
+Create socket
+Socket created: X
+Read interface configuration
+Configuration size: ###
+
+Interface:    XXX
+Layout:       BSD 4.3 compatible
+Family:       XXX
+Index:        1
+HWType:       24
+NameLen:      3
+AddrLen:      0
+SelectorLen:  0
+Name:         lo0
+Addr:         
+Selector:     

@@ -1,0 +1,4 @@
+s/Content-Length: \d+\|M/Content-Length: <length>|M/
+s/Date: .*\|M/Date: <date>|M/
+s/Last-Modified: .*\|M/Last-Modified: <date>|M/
+s/ETag: ".*"\|M/ETag: "<something>"|M/

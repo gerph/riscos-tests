@@ -1,0 +1,160 @@
+#
+# SUT:    Extension Modules: Internet
+# Area:   Networking
+# Class:  Functional
+# Type:   Integration test
+#
+
+
+Group: Internet Informationals
+Command: $TOOL $FILE
+Expect: expect.internet-5.$BASE
+
+Test: Internet Version
+File: bin.internet_version
+
+Test: Internet Socket table size
+File: bin.internet_gettsize
+
+
+Group: Interface enumeration
+Command: $TOOL bin.internet_interfaces $ARG1
+Expect: expect.internet-5.internet_interfaces_$ARG1
+Replace: expect.internet-5.internet_interfaces_$ARG1-replacements
+
+Test: SIOCGIFCONF
+Args: n
+
+Test: SIOCOGIFCONF
+Args: o
+
+
+Group: Socket creation
+Command: $TOOL bin.internet_create $ARG1 $ARG2 $ARG3
+Expect: expect.internet-5.internet_create_$ARG1_$ARG2_$ARG3
+Replace: expect.internet-5.internet_create-replacements
+
+Test: IP Stream TCP
+Args: 2 1 6
+
+Test: IP Datagram UDP
+Args: 2 2 17
+
+Test: IPv6 Stream TCP
+Args: 24 1 6
+RC: 1
+
+Test: IPv6 Datagram UDP
+Args: 24 2 17
+RC: 1
+
+Test: BadFamily Stream TCP
+Args: 99 1 6
+RC: 1
+
+Test: IP BadSockType TCP
+Args: 2 99 6
+RC: 1
+
+Test: IP Stream BadProtocol
+Args: 2 1 99
+RC: 1
+
+
+Group: Socket listening
+Command: $TOOL bin.internet_listen $ARG1
+Expect: expect.internet-5.internet_listen_$ARG1
+Replace: expect.internet-5.internet_listen-replacements
+
+Test: Listen UDP
+Args: ux
+
+Test: Listen TCP
+Args: tx
+
+Test: Listen UDP IPv6
+Args: 6ux
+RC: 1
+
+Test: Listen TCP IPv6
+Args: 6tx
+RC: 1
+
+
+Group: TCP Connections
+Command: $TOOL bin.internet_listen $ARG1
+Expect: expect.internet-5.internet_listen_$ARG1
+Replace: expect.internet-5.internet_listen-replacements
+
+Test: Listen TCP IPv4, connect
+Args: tcx
+
+Test: Listen TCP IPv4, connect and accept
+Args: tcax
+
+Test: Listen TCP IPv6, connect
+Args: 6tcx
+RC: 1
+
+Test: Listen TCP IPv6, connect and accept
+Args: 6tcax
+RC: 1
+
+Test: Dual stack: Listen on IPv6, connect on IPv4
+Args: 6t4cax
+RC: 1
+
+# This one just won't work
+#Test: Dual stack: Listen on IPv4, connect on IPv6 (errors)
+#Args: 4t6cax
+#RC: 1
+
+
+Group: Closing sockets
+
+Command: $TOOL bin.internet_listen $ARG1
+Expect: expect.internet-5.internet_close_$ARG1
+Replace: expect.internet-5.internet_listen-replacements
+
+Test: Close handle -1
+Args: x
+RC: 1
+
+Test: Listen TCP IPv4, then close the socket
+Args: tx
+
+Test: Listen TCP IPv4, then close the socket twice
+Args: txx
+RC: 1
+
+# Already tested
+#Test: Listen TCP IPv4, connect and accept, close listener
+#Args: tcax
+
+
+Group: Socket errors
+
+Command: $TOOL bin.internet_listen $ARG1
+Expect: expect.internet-5.internet_errors_$ARG1
+Replace: expect.internet-5.internet_listen-replacements
+
+Test: Listen TCP IPv4 port twice
+Args: tt
+RC: 1
+
+#Test: Listen UDP IPv4 port twice
+#Args: uu
+#RC: 1
+
+
+Group: Socket connection
+Command: $TOOL bin.internet_http $ARG1
+Expect: expect.internet-5.internet_http_$ARG1
+Replace: expect.internet-5.internet_http-replacements
+
+Test: Connect IPv4 to gerph.org
+Args: 4
+
+# Disabled for now; no routing in the docker container for IPv6
+#Test: Connect IPv6 to gerph.org
+#Args: 6

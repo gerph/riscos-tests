@@ -19,6 +19,13 @@ build tools being available.
 There is a perl script, test.pl which is intended for running the test
 files.
 
-The test descriptions have not been included yet.
+The test descriptions are present for a few of the tests:
 
+* `tests-core.txt`
+* `tests-vdu.txt`
+* `tests-readargs.txt`
+
+To run the scripts, use the !RunTests script, thus:
+
+    /!RunTests tests-core/txt
 

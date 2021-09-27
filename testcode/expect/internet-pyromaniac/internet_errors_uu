@@ -1,0 +1,11 @@
+--- Listening on UDP
+Creating UDP socket
+Socket created: 0
+Making address reusable
+Binding
+--- Listening on UDP
+Creating UDP socket
+Socket created: 1
+Making address reusable
+Binding
+Error: Socket error 48: EADDRINUSE: Address already in use (Error number &20e30)

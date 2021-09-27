@@ -1,0 +1,18 @@
+--- Listening on TCP
+Creating TCP socket
+Socket created: 0
+Making address reusable
+Binding
+Listening
+Getting our socket name
+Socket address length: 16
+New style sockaddr
+Size:         16
+Family:       2
+Port number:  OUR-PORT
+IPv4 address: 0.0.0.0
+--- Connect to the listener
+Create a new TCP socket
+Socket created: 1
+Connect to the listener address
+Error: Socket error 61: ECONNREFUSED: Connection refused (Error number &20e3d)

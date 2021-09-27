@@ -1,0 +1,10 @@
+Create socket
+Socket created: 0
+Read interface configuration
+Configuration size: ###
+
+Interface:    XXX
+Layout:       BSD 4.3 compatible
+Family:       XXX
+Port number:  0
+IPv4 address: XXX

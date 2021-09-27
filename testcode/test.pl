@@ -1136,6 +1136,7 @@ sub run_test
         #print "RUN: '$cmdtorun'\n";
         $output = `$cmdtorun`;
         $status = $?;
+        #print "Status: $status\n";
         $test->{'duration'} = time() - $start_time;
 
         for $key (keys %{$test->{'env'}})

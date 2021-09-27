@@ -35,6 +35,9 @@
         MEND
 
 
+ABEX    *       0x58454241
+
+
 capture ROUT
         STR     sp, old_sp
         Push    "r0-r10, lr"
@@ -130,7 +133,18 @@ env_error SIGNATURE
         PrintError
         SWI     OS_NewLine
 
+; Exit with a return code
+        ADR     r0, err
+        LDR     r1, =ABEX
+        MOV     r2, #1
         SWI     OS_Exit
+
+        LTORG
+
+
+err     DCD     1
+        = "Return code too high", 0
+        ALIGN
 
 
 redirection_output_handle DCD 0
