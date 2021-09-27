@@ -5,7 +5,7 @@
 
 validate_address      ROUT
         MOV     r0, #&88000000
-        ADD     r0, r0, #4
+        ADD     r1, r0, #4
         SWI     OS_ValidateAddress
         BCS     %FT40
 
