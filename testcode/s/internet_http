@@ -3,14 +3,7 @@
 
         GET     hdr.swis
         GET     hdr.printmacros
-
-AF_INET     * 2
-AF_INET6    * 28
-SOCK_STREAM * 1    ; stream socket */
-SOCK_DGRAM  * 2    ; datagram socket */
-IPPROTO_IP  * 0    ; dummy for IP
-IPPROTO_TCP * 6    ; tcp
-IPPROTO_UDP * 17   ; user datagram protocol
+        GET     hdr.internet
 
 port * 80
 

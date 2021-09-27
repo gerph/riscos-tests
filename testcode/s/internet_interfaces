@@ -4,17 +4,8 @@
         GET     hdr.swis
         GET     hdr.printmacros
         GET     hdr.macros
+        GET     hdr.internet
 
-AF_INET     * 2
-AF_LINK     * 18
-AF_INET6    * 28
-SOCK_STREAM * 1    ; stream socket */
-SOCK_DGRAM  * 2    ; datagram socket */
-IPPROTO_IP  * 0    ; dummy for IP
-IPPROTO_TCP * 6    ; tcp
-IPPROTO_UDP * 17   ; user datagram protocol
-IOCTL_SIOCOGIFCONF * 0xc0086914
-IOCTL_SIOCGIFCONF * 0xc0086960
 
 internet_interfaces ROUT
         MOV     r8, #0

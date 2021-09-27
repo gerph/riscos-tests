@@ -1,0 +1,47 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+        GET     hdr.macros
+        GET     hdr.internet
+
+
+
+; Create some sockets of different types
+
+internet_create ROUT
+        Push    "lr"
+
+; read the familiy number
+        XSWI    OS_ReadUnsigned, 10
+        MOV     r6, r2
+
+; read the socket type
+        XSWI    OS_ReadUnsigned, 10
+        MOV     r7, r2
+
+; read the protocol number
+        XSWI    OS_ReadUnsigned, 10
+        MOV     r8, r2
+
+        PrintMessage "Socket_Create "
+        PrintInteger r6
+        PrintMessage ", "
+        PrintInteger r7
+        PrintMessage ", "
+        PrintInteger r8
+        PrintLine ""
+
+        XSWI    Socket_Creat, r6, r7, r8
+        PrintMessage "Socket created: "
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        SWI     Socket_Close
+
+        PrintLine "Closed"
+
+        Pull    "pc"
+
+        END

@@ -714,6 +714,7 @@ Sound_QSDispatch DEFINESWI 0x000401C4
 Sound_QTempo DEFINESWI 0x000401C5
 Sound_QBeat DEFINESWI 0x000401C6
 Sound_QInterface DEFINESWI 0x000401C7
+Sound_QSchedule32 DEFINESWI 0x000401C8
 
 ; Generated from /Users/charles/projects/RO/riscos/Export/Hdr/Interface/Squash
 Squash_Compress DEFINESWI 0x00042700

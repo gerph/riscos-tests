@@ -3,6 +3,13 @@
 ;
 ; XSWI <swi>, <regs>*
 ;   - invoke a SWI passing in explicit registers
+;     register parameter can take the form:
+;       r<0-15> - an explicit register (registers are assigned in ascending order)
+;       ^<symbol> - pointer to a symbol (short ADR range)
+;       $<string> - a string to use as a pointer
+;       '<char>' - a character
+;       #<value> - a value, using literal pool for the value
+;       <value> - a value, using MOV if possible, or literal pool if not
 ;
 ; XBL <label>, <regs>*
 ;   - call a label passing in explicit registers
@@ -85,14 +92,23 @@ arg     SETS    "$p" :RIGHT: ((:LEN: "$p") - 1)
        [ "$p" :LEFT: 1 = "'"
         MOV     $reg, #$p
        |
-        [ "$p" :LEFT: 1 = "#"
+        [ "$p" :LEFT: 1 = "$"
+        ADR     $reg, %FA10
+        B       %FA20
+10
+        = "$p" :RIGHT: ((:LEN: "$p") - 1), 0
+        ALIGN
+20
+        |
+         [ "$p" :LEFT: 1 = "#"
 arg     SETS    "$p" :RIGHT: ((:LEN: "$p") - 1)
         LDR     $reg, =$arg
-        |
-         [ ($p) < 256
-        MOV     $reg, #$p
          |
+          [ ($p) < 256
+        MOV     $reg, #$p
+          |
         LDR     $reg, =$p
+          ]
          ]
         ]
        ]
