@@ -1,0 +1,450 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.macros
+        GET     hdr.printmacros
+
+
+debugger   ROUT
+        LDRB    r0, [r1], #1
+
+        TEQ     r0, #'d'
+        BEQ     disassemble
+
+        TEQ     r0, #'f'
+        BEQ     disassemble_fpa
+
+syntax
+        PrintLine "Syntax: debugger d|f"
+
+        MOV     pc, lr
+
+
+disassemble SIGNATURE
+        Push    "lr"
+
+        GBLA    count
+count   SETA    0
+
+        MACRO
+        DisassembleStart $name
+count   SETA    count + 1
+
+        PrintLine "Test: $name"
+        ADR     r4, disassemble_start_$count
+        ADR     r5, disassemble_end_$count
+10
+        LDR     r0, [r4], #4
+        XSWI    Debugger_Disassemble,, &8000
+        PrintMessage "    "
+        PrintString r1
+        SWI     XOS_NewLine
+        CMP     r4, r5
+        BLO     %BT10
+
+        SWI     OS_NewLine
+        B       disassemble_end_$count
+disassemble_start_$count
+        MEND
+
+        MACRO
+        DisassembleEnd
+disassemble_end_$count
+        MEND
+
+        DisassembleStart "Move"
+        MOV     r1, r2
+        MOV     r1, r2, LSL #5
+        MOV     r1, r2, LSL r3
+        MOV     r1, r2, LSR #5
+        MOV     r1, r2, LSR r3
+        MOV     r1, r2, ASR #5
+        MOV     r1, r2, ASR r3
+        MOV     r1, r2, ROR #5
+        MOV     r1, r2, ROR r3
+        MOV     pc, lr
+        MOV     r1, #7
+        MOV     r1, #&128
+        MOV     r1, #&80000
+        MVN     r1, r2
+        MVN     r1, r2, LSL #5
+        MVN     r1, r2, LSL r3
+        MOV     r1, #-7
+        MOV     r1, #-&121
+        MOVS    r1, #17
+        MOVS    r1, r2, LSL #5
+        DisassembleEnd
+
+        DisassembleStart "Arithmetic (register)"
+        ADD     r1, r2, r3
+        SUB     r1, r2, r3
+        ADC     r1, r2, r3
+        SBC     r1, r2, r3
+        RSB     r1, r2, r3
+        RSC     r1, r2, r3
+        ADDS    r1, r2, r3
+        SUBS    r1, r2, r3
+        ADCS    r1, r2, r3
+        SBCS    r1, r2, r3
+        RSBS    r1, r2, r3
+        RSCS    r1, r2, r3
+        DisassembleEnd
+
+        DisassembleStart "Multiply"
+        MUL     r1, r2, r3
+        MLA     r1, r2, r3, r4
+        DisassembleEnd
+
+        DisassembleStart "Logical (register)"
+        ORR     r1, r2, r3
+        EOR     r1, r2, r3
+        AND     r1, r2, r3
+        BIC     r1, r2, r3
+        DisassembleEnd
+
+        DisassembleStart "Logical (register, shifts)"
+        ORR     r1, r2, r3, LSL r4
+        ORR     r1, r2, r3, LSR r4
+        ORR     r1, r2, r3, ASR r4
+        ORR     r1, r2, r3, ROR r4
+        ORR     r1, r2, r3, LSL #7
+        ORR     r1, r2, r3, LSR #7
+        ORR     r1, r2, r3, ASR #7
+        ORR     r1, r2, r3, ROR #7
+        ORR     r1, r2, r3, RRX
+        DisassembleEnd
+
+        DisassembleStart "Logical (constant)"
+        ORR     r1, r2, #1
+        ORR     r1, r2, #&248
+        ORR     r1, r2, #&9900
+        ORR     r1, r2, #&88000
+        ORR     r1, r2, #&80000
+        ORR     r1, r2, #&770000
+        ORR     r1, r2, #&6600000
+        ORR     r1, r2, #&55000000
+        ORR     r1, r2, #&EE000000
+        ORR     r1, r2, #&80000001
+        DisassembleEnd
+
+        DisassembleStart "Arithmetic pc-relative"
+prev    ADR     r1, next
+next    ADR     r1, prev
+        ADD     pc, pc, r2, LSL #2
+        DisassembleEnd
+
+        DisassembleStart "Load/Store indexed"
+        LDR     r1, [r2, #0]
+        STR     r1, [r2, #0]
+        LDRB    r1, [r2, #1]
+        STRB    r1, [r2, #1]
+        LDR     r1, [r2, #4]
+        LDR     r1, [r2, #&228]
+        LDR     r1, [r2, #-4]
+        LDR     r1, [r2, #4]!
+        LDR     r1, [r2, #-4]!
+        LDR     r1, [r2, r3]
+        LDR     r1, [r2, -r3]
+        LDR     r1, [r2, r3, LSL #2]
+        LDR     r1, [r2, r3, LSR #2]
+        DisassembleEnd
+
+        DisassembleStart "Load/Store post-indexed"
+        LDRB    r1, [r2], #1
+        LDR     r1, [r2], #4
+        LDR     r1, [r2], #-4
+        LDR     r1, [r2], r3
+        LDR     r1, [r2], -r3
+        LDR     r1, [r2], r3, LSL #2
+        LDR     r1, [r2], r3, LSR #2
+        DisassembleEnd
+
+        DisassembleStart "Load/Store pc-relative"
+prev2   LDR     r1, next2
+next2   LDR     r1, prev2
+        LDR     r1, [pc, r2]
+        DisassembleEnd
+
+        DisassembleStart "SWI"
+        SWI     OS_WriteC
+        SWI     OS_WriteI + 'a'
+        DisassembleEnd
+
+        DisassembleStart "Conditions"
+        MOVEQ   r1, r2
+        MOVNE   r1, r2
+        MOVCS   r1, r2
+        MOVCC   r1, r2
+        MOVMI   r1, r2
+        MOVPL   r1, r2
+        MOVVS   r1, r2
+        MOVVC   r1, r2
+        MOVHI   r1, r2
+        MOVLS   r1, r2
+        MOVGE   r1, r2
+        MOVLT   r1, r2
+        MOVGT   r1, r2
+        MOVLE   r1, r2
+        MOVAL   r1, r2
+        MOVNV   r1, r2
+        DisassembleEnd
+
+        DisassembleStart "Conditions (branches)"
+        BEQ     .
+        BNE     .
+        BCS     .
+        BCC     .
+        BMI     .
+        BPL     .
+        BVS     .
+        BVC     .
+        BHI     .
+        BLS     .
+        BGE     .
+        BLT     .
+        BGT     .
+        BLE     .
+        BAL     .
+        BNV     .                       ; now BLX
+        DisassembleEnd
+
+        DisassembleStart "Conditions (branch link)"
+        BLEQ    .
+        BLNE    .
+        BLCS    .
+        BLCC    .
+        BLMI    .
+        BLPL    .
+        BLVS    .
+        BLVC    .
+        BLHI    .
+        BLLS    .
+        BLGE    .
+        BLLT    .
+        BLGT    .
+        BLLE    .
+        BLAL    .
+        BLNV    .                       ; now BLX (with the extra bit being the +2)
+        DisassembleEnd
+
+        DisassembleStart "Comparisons"
+        CMP     r1, r2
+        CMP     r1, #7
+        CMP     r1, r2, LSL #2
+        CMP     r1, r2, LSL r3
+
+        CMN     r1, r2
+        CMP     r1, #-7
+        CMN     r1, r2, LSL #2
+        CMN     r1, r2, LSL r3
+
+        TEQ     r1, r2
+        TEQ     r1, #7
+        TEQ     r1, r2, LSL #2
+        TEQ     r1, r2, LSL r3
+
+        TST     r1, r2
+        TST     r1, #7
+        TST     r1, r2, LSL #2
+        TST     r1, r2, LSL r3
+        DisassembleEnd
+
+        DisassembleStart "Comparisons (special)"
+    ; these aren't special but they're here to ensure we don't mark them all as 'P' operations
+        CMP     pc, #3
+        CMN     pc, #3
+        TEQ     pc, #3
+        TST     pc, #3
+    ; these are special
+        CMPP    pc, #3
+        CMNP    pc, #3
+        TEQP    pc, #3
+        TSTP    pc, #3
+        DisassembleEnd
+
+        DisassembleStart "Status register"
+        MRS     r1, CPSR
+        MRS     r1, SPSR
+        MSR     SPSR, r1
+        MSR     CPSR, r1
+        MSR     CPSR_cxsf, r1
+        MSR     CPSR_c, r1
+        MSR     CPSR_f, r1
+        MSR     CPSR_c, #16 + 3         ; SVC32
+        MSR     CPSR_c, #16 + 0         ; USR32
+        MSR     CPSR_c, #0              ; SVC26
+        MSR     CPSR_f, #(1<<28)
+        MSR     CPSR_f, #(1<<29)
+        MSR     CPSR_f, #(1<<30)
+        MSR     CPSR_f, #(1<<31)
+        DisassembleEnd
+
+        DisassembleStart "Load/Store multiple"
+        LDMIA   r0, {r1-r3}
+        LDMIA   r0!, {r1-r3}
+        LDMIB   r0, {r2, r4, r5}
+        LDMDA   r0, {r7, r9, r11}
+        LDMDB   r0, {r3, r4, r14}
+
+        STMIA   r0, {r1-r3}
+        STMIA   r0!, {r1-r3}
+        STMIB   r0, {r2, r4, r5}
+        STMDA   r0, {r7, r9, r11}
+        STMDB   r0, {r3, r4, r14}
+        DisassembleEnd
+
+        DisassembleStart "Load/Store multiple (sp)"
+        LDMIA   sp!, {r1-r3}
+        LDMIB   sp!, {r2, r4, r5}
+        LDMDA   sp!, {r7, r9, r11}
+        LDMDB   sp!, {r3, r4, r14}
+
+        STMIA   sp!, {r1-r3}
+        STMIB   sp!, {r2, r4, r5}
+        STMDA   sp!, {r7, r9, r11}
+        STMDB   sp!, {r3, r4, r14}
+        DisassembleEnd
+
+        Pull    "pc"
+
+
+
+
+disassemble_fpa SIGNATURE
+        Push    "lr"
+
+        DisassembleStart "Load/Store"
+        LDFS    F1, [r2]
+        LDFS    F1, [r2, #4]
+        LDFS    F1, [r2, #-4]
+        LDFS    F1, [r2, #4]!
+        LDFS    F1, [r2], #4
+    ; different precisions
+        LDFD    F1, [r2]
+        LDFE    F1, [r2]
+        LDFP    F1, [r2]
+    ; stores
+        STFS    F1, [r2]
+    ; Load PC relative
+        LDFS    F1, next3
+next3
+        DisassembleEnd
+
+        DisassembleStart "Load/Store conditional"
+        LDFEQS  F1, [r2]
+        STFMIS  F1, [r2]
+        DisassembleEnd
+
+        DisassembleStart "Load/Store multiple"
+        LFM     F1, 2, [r2]
+        LFM     F1, 2, [r2, #4]
+        LFM     F1, 2, [r2, #-4]
+        LFM     F1, 2, [r2, #4]!
+        SFM     F1, 2, [r2]
+        DisassembleEnd
+
+        DisassembleStart "Binary ops"
+        ADFS    F1, F2, F3
+        MUFS    F1, F2, F3
+        SUFS    F1, F2, F3
+        RSFS    F1, F2, F3
+        DVFS    F1, F2, F3
+        RDFS    F1, F2, F3
+        POWS    F1, F2, F3
+        RPWS    F1, F2, F3
+        RMFS    F1, F2, F3
+        FMLS    F1, F2, F3
+        FDVS    F1, F2, F3
+        FRDS    F1, F2, F3
+        POLS    F1, F2, F3
+        DisassembleEnd
+
+        DisassembleStart "Binary ops (constants)"
+        ADFS    F1, F2, #0
+        ADFS    F1, F2, #0.5
+        ADFS    F1, F2, #1
+        ADFS    F1, F2, #2
+        ADFS    F1, F2, #3
+        ADFS    F1, F2, #4
+        ADFS    F1, F2, #5
+        ADFS    F1, F2, #10
+        DisassembleEnd
+
+        DisassembleStart "Binary ops (rounding)"
+        ADFS    F1, F2, #0
+        ADFSP   F1, F2, #0
+        ADFSM   F1, F2, #0
+        ADFSZ   F1, F2, #0
+        DisassembleEnd
+
+        DisassembleStart "Binary ops (precision)"
+        ADFS    F1, F2, #0
+        ADFD    F1, F2, #0
+        ADFE    F1, F2, #0
+        DisassembleEnd
+
+        DisassembleStart "Binary ops (conditional)"
+        ADFEQS  F1, F2, #0
+        ADFPLS  F1, F2, #0
+        DisassembleEnd
+
+        DisassembleStart "Unary ops"
+        MVFS    F1, F2
+        MNFS    F1, F2
+        ABSS    F1, F2
+        RNDS    F1, F2
+        SQTS    F1, F2
+        LOGS    F1, F2
+        LGNS    F1, F2
+        EXPS    F1, F2
+        SINS    F1, F2
+        COSS    F1, F2
+        TANS    F1, F2
+        ASNS    F1, F2
+        ACSS    F1, F2
+        ATNS    F1, F2
+        URDS    F1, F2
+        NRMS    F1, F2
+        DisassembleEnd
+
+        DisassembleStart "Transfers (and precision)"
+        FIX     R1, F1
+        FLTS    F1, R1
+        FLTD    F1, R1
+        FLTE    F1, R1
+        DisassembleEnd
+
+        DisassembleStart "Transfers (rounding)"
+        FIX     R1, F1
+        FIXP    R1, F1
+        FIXM    R1, F1
+        FIXZ    R1, F1
+        FLTS    F1, R1
+        FLTSP   F1, R1
+        FLTSM   F1, R1
+        FLTSZ   F1, R1
+        DisassembleEnd
+
+        DisassembleStart "Transfers (status/control)"
+        WFS     R1
+        RFS     R1
+        WFC     R1
+        RFC     R1
+        DisassembleEnd
+
+        DisassembleStart "Comparisons"
+        CMF     F1, F2
+        CMFE    F1, F2
+        CMF     F1, #0.5
+        CMFE    F1, #0.5
+    ; negative forms
+        CNF     F1, F2
+        CNFE    F1, F2
+        CNF     F1, #0.5
+        CNFE    F1, #0.5
+        DisassembleEnd
+
+        Pull    "pc"
+
+        END
