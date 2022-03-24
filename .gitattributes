@@ -1,4 +1,4 @@
-s/* gitlab-language=armasm
-hdr/* gitlab-language=armasm
-**/s/* gitlab-language=armasm
-**/hdr/* gitlab-language=armasm
+s/* gitlab-language=armasm linguist-language=assembly
+hdr/* gitlab-language=armasm linguist-language=assembly
+**/s/* gitlab-language=armasm linguist-language=assembly
+**/hdr/* gitlab-language=armasm linguist-language=assembly
