@@ -205,7 +205,8 @@
 #   - Conditions:
 #       - [<number>]-[<number>] or <number> for line range to apply rule to.
 #         Line numbers start at 1.
-#       - /<regular expression>/ for expression to match.
+#       - /<regular expression>/for expression to match.
+#       - Both the above conditions may be suffixed by `!` to negate matches.
 #   - Actions:
 #       - `p` immediately include the line in the output, and move on to the next line
 #       - `q` immediately terminate all input processing (ends the output without this line).
@@ -381,7 +382,8 @@ if (!defined $testtool ||
     exit($help ? 0 : 1);
 }
 
-my $extensions_re = "s|hdr|c|h|cmhg|s_c|o|aof|bin|x";
+my $extensions_dir_re = "s|hdr|c|h|cmhg|s_c|o|aof|bin|x";
+my $extensions_re = "xml|log|txt";
 
 my ($none, $testtoolname) = ($testtool =~ /(^|\/)([^\/]*)$/);
 
@@ -414,6 +416,15 @@ my %checkers = (
         'binary' => \&binary_check,
     );
 
+my $dirsep;
+if ($^O eq 'riscos')
+{
+    $dirsep = '.';
+}
+else
+{
+    $dirsep = '/';
+}
 my $tempbase;
 if ($riscos)
 {
@@ -623,7 +634,7 @@ sub setup_variables
         $vars->{'HFILE'} = '';
         $vars->{'BASE'} = '';
     }
-    elsif ($test->{'file'} =~ /(^|.*\.)($extensions_re)\.(.*)/)
+    elsif ($test->{'file'} =~ /(^|.*\.)($extensions_dir_re)\.(.*)/)
     {
         $vars->{'OFILE'} = "$1o.$3";
         $vars->{'SFILE'} = "$1s.$3";
@@ -631,7 +642,7 @@ sub setup_variables
         $vars->{'HFILE'} = "$1h.$3";
         $vars->{'BASE'} = "$3";
     }
-    elsif ($test->{'file'} =~ /^(^|.*\/)($extensions_re)\/(.*)/)
+    elsif ($test->{'file'} =~ /^(^|.*\/)($extensions_dir_re)\/(.*)/)
     {
         $vars->{'OFILE'} = "$1o/$3";
         $vars->{'SFILE'} = "$1s/$3";
@@ -765,35 +776,73 @@ sub number
 sub native_filename
 {
     my ($filename) = @_;
-    my $dirsep;
 
     die "No filename passed to native_filename" if (!defined $filename);
 
-    if ($riscos)
-    {
-        $dirsep = '.';
-    }
-    else
-    {
-        $dirsep = '/';
-    }
-
     print "('$filename'" if ($debug_filename);
-    if ($filename =~ /^(.*)\/($extensions_re)$/)
+    # First the directory exchanges
+    if ($filename =~ /^(.*)\/($extensions_dir_re)$/)
     { # Unix layout, RISC OS syntax
         $filename = "$2$dirsep$1";
     }
-    elsif ($filename =~ /^(.*)\.($extensions_re)$/)
+    elsif ($filename =~ /^(.*)\.($extensions_dir_re)$/)
     { # Unix layout, Unix syntax
         $filename = "$2$dirsep$1";
     }
-    elsif ($filename =~ /^($extensions_re)\/(.*)$/)
+    elsif ($filename =~ /^($extensions_dir_re)\/(.*)$/)
     { # RISCO OS layout, Unix syntax
         $filename = "$1$dirsep$2";
     }
-    elsif ($filename =~ /^($extensions_re)\.(.*)$/)
+    elsif ($filename =~ /^($extensions_dir_re)\.(.*)$/)
     { # RISC OS layout, RISC OS syntax
         $filename = "$1$dirsep$2";
+    }
+
+    # Now the replacements for the plain extension
+    # FIXME: I think this should probably also be performed on the prefix
+    #        in the above names.
+    elsif ($filename =~ /^(.*)\/($extensions_re)$/)
+    {
+        # RISCOS extension layout
+        if ($^O eq 'riscos')
+        {
+            # Nothing to do; we're already in the right format
+        }
+        else
+        {
+            while ($filename =~ s/([^\^\@\$\%\\\.]+)\.\^\.//)
+            {
+                # Strip off <dir>.^ from any components
+            }
+            # Exchange the dots and slashes.
+            $filename =~ tr!./!/.!;
+
+            # Any ^ that are left will be for the root, so replace these
+            $filename =~ s!\^/!../!g;
+
+            # Environment variables <sigh>
+            $filename =~ s/<(.*)\$Dir>/$ENV{uc "$1_DIR"} || die "No variable '$1' in '$filename'"/ieg;
+        }
+    }
+    elsif ($filename =~ /^(.*)\.($extensions_re)$/)
+    {
+        # Unix extension layout
+        if ($^O eq 'riscos')
+        {
+            # Convert to RISC OS format
+
+            # Exchange the dots and slashes.
+            $filename =~ tr!./!/.!;
+
+            while ($filename =~ s!//\.!^.!)
+            {
+                # Replace all the ../ with ^.
+            }
+        }
+        else
+        {
+            # Already in the correct format.
+        }
     }
     print " => '$filename' : $dirsep)" if ($debug_filename);
 
@@ -832,6 +881,7 @@ sub read_file
 sub read_command_file
 {
     my ($filename) = @_;
+    local *FH;
     open(FH, "< $filename") || die "Cannot read file '$filename': $!";
 
     my @lines;
@@ -898,11 +948,22 @@ sub apply_replacements
             { $condition = "\$index >= $1 && \$index <= $2"; }
             elsif ($range =~ /^([0-9]+)-$/)
             { $condition = "\$index >= $1"; }
+
+            if ($line =~ s/^! *//)
+            {
+                $condition = "! ($condition)";
+            }
             push @conditions, $condition;
         }
 
         # Conditions for regular expression matches
-        if ($line =~ s!^([^a-zA-Z0-9])(.*[^\\]|)\1 +!!)
+        if ($line =~ s!^([^a-zA-Z0-9])(.*[^\\]|)\1 +\! *!!)
+        {
+            my ($delimiter, $match) = ($1, $2);
+            my $condition = "\$line !~ m$delimiter$match$delimiter";
+            push @conditions, $condition;
+        }
+        elsif ($line =~ s!^([^a-zA-Z0-9])(.*[^\\]|)\1 +!!)
         {
             my ($delimiter, $match) = ($1, $2);
             my $condition = "\$line =~ m$delimiter$match$delimiter";
@@ -1107,6 +1168,7 @@ sub run_test
         $input = tempfilename('input');
         my $inputactual = $inputline;
         $inputactual =~ s/\\n/\n/g;
+        $inputactual =~ s/\\x([0-9A-Fa-f][0-9A-Fa-f])/chr(hex($1))/ge;
         open(INFH, "> $input") || die "Cannot create temporary input file '$input': $!";
         print INFH "$inputactual\n";
         close(INFH);
@@ -1232,11 +1294,16 @@ sub run_test
                     my %args = %{$test->{$checker}};
                     my $func = $checkers{$checker};
                     eval {
+                        if ($creates =~ / /)
+                        {
+                            die "Cannot use checkers with multiple 'Creates'\n";
+                        }
+                        my $created = native_filename($creates);
                         for $key (keys %args)
                         {
                             $args{$key} = substitute($args{$key}, $vars);
                         }
-                        $fail = & $func ($creates, \%args);
+                        $fail = & $func ($created, \%args);
                     };
                     if ($@)
                     {
@@ -1366,6 +1433,7 @@ sub write_junitxml
         $nskipped += $group->{'skip'};
     }
 
+    print "Writing JUnitXML file to '$output'\n";
     open(FH, "> $output") || die "Cannot write JunitXML '$output': $!";
 
     print FH "<?xml version=\"1.0\"?>\n";
@@ -1486,7 +1554,7 @@ sub readword
     my $word;
     if (sysread($cfd->{'fh'}, $word, 4) != 4)
     {
-        die "Short read of word";
+        die "Short read of word at offset " . (sysseek($cfd->{'fh'}, 0, 1));
     }
     if ($cfd->{'reverse'})
     {
@@ -1587,7 +1655,7 @@ sub chunkfile
 {
     my ($filename) = @_;
     my $cf = binaryfile($filename);
-    my $cfd = $cf->{'cfd'};
+    my $cfd = $cf->{'bfd'};
 
     $cf->{'MaxChunks'} = 0;
     $cf->{'NumChunks'} = 0;
@@ -2182,7 +2250,33 @@ sub binary_check
 
 # Execute in the directory requested
 # NOTE: On RISC OS, this is destructive, as there is only one CWD.
-chdir "$dir" || die "Cannot change directory to '$dir': $!";
+chdir "$dir";
+my $filtereddir = $dir;
+while ($filtereddir =~ s!\.\./[^./][^./][^/]+!!)
+{} # Remove any ../<dir> components
+my @dirparts = split m!/!, $filtereddir;
+if (scalar(@dirparts) == 1 && $dir =~ /\./)
+{
+    # They gave a RISC OS path (FIXME: Decide how to convert the path above to native form)
+    @dirparts = split m!\.!, $filtereddir;
+}
+# Strip the specifications of the current directory.
+@dirparts = grep { $_ ne '@' && $_ ne '.' } @dirparts;
+
+
+# Now build the relative location of the original directory
+my $rootdir;
+if ($^O eq 'riscos')
+{
+    $rootdir = '^.' x scalar(@dirparts);
+    $rootdir = '@.' if ($rootdir eq '');
+}
+else
+{
+    $rootdir = '../' x scalar(@dirparts);
+    $rootdir = './' if ($rootdir eq '');
+}
+
 
 # Ensure we output immediately, so that stderr appears in a sane place
 $| = 1;
@@ -2260,6 +2354,16 @@ if ($total != 0)
 
 if ($junitxml)
 {
+    # Turn the junitxml into a native path
+    $junitxml = native_filename($junitxml);
+    if ($junitxml =~ m!^/! || $junitxml =~ m![\$@%]!)
+    {
+        # Already anchored.
+    }
+    else
+    {
+        $junitxml = $rootdir . $junitxml;
+    }
     write_junitxml($junitxml, @groups);
 }
 
