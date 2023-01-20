@@ -1,0 +1,62 @@
+; Functions for dumping memory
+
+; Dump some memory in a table
+; r0 -> memory
+; r1 = memory size
+; r2 = width (1, 2, 4)
+dump_memory SIGNATURE
+        Push    "r0-r6, lr"
+        MOV     r4, r0              ; start of memory to dump
+        MOV     r5, r1              ; size to dump
+        MOV     r3, r2              ; width of each entry
+25
+        MOV     r6, #0              ; offset being printed
+
+30
+cols_perrow * 16
+        TST     r6, #cols_perrow - 1    ; first entry on a line?
+        BNE     %FT35
+        PrintInteger r6, 4
+        SWI     OS_WriteI + ':'
+35
+        SWI     OS_WriteI + ' '
+
+        SWI     OS_WriteI + '&'
+
+        MOV     r1, r12
+        MOV     r2, #12
+        TEQ     r3, #1
+        BNE     %FT37
+        LDRB    r0, [r4, r6]
+        SWI     OS_ConvertHex2
+        B       %FT40
+37
+        TEQ     r3, #2
+        BNE     %FT38
+        LDRB    r0, [r4, r6]
+        ADD     r6, r6, #1
+        LDRB    r14, [r4, r6]
+        ORR     r0, r0, r14, LSL #8
+        SWI     OS_ConvertHex4
+        B       %FT40
+38
+        LDR     r0, [r4, r6]
+        ADD     r6, r6, #3
+        SWI     OS_ConvertHex8
+        B       %FT40
+
+40
+        SWI     OS_Write0
+
+        ADD     r6, r6, #1
+        TST     r6, #cols_perrow - 1    ; last entry on a line?
+        SWIEQ   OS_NewLine
+
+        CMP     r6, r5
+        BLT     %BT30
+
+        SWI     OS_NewLine
+
+        Pull    "r0-r6, pc"
+
+        END

@@ -1,0 +1,499 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.modhand
+        GET     hdr.printmacros
+        GET     hdr.macros
+
+adfs  ROUT
+        Push    "lr"
+10
+        ADR     lr, %BT10
+        LDRB    r0, [r1], #1
+        TEQ     r0, #'d'
+        BEQ     adfs_drives
+
+        TEQ     r0, #'i'
+        BEQ     adfs_describedisc
+
+        TEQ     r0, #'f'
+        BEQ     adfs_freespace
+
+        TEQ     r0, #'r'
+        BEQ     adfs_discop_readsectors
+
+        TEQ     r0, #'w'
+        BEQ     adfs_discop_writesectors
+
+        TEQ     r0, #'e'
+        BEQ     adfs_miscop_eject
+
+        TEQ     r0, #'m'
+        BEQ     adfs_miscop_mount
+
+        TEQ     r0, #'v'
+        BEQ     adfs_discop_verify
+
+        TEQ     r0, #'X'
+        BEQ     adfs_reinit
+
+        CMP     r0, #32
+        BLO     %FT90
+
+        PrintLine "Syntax: adfs d|f[-0-8](n|o)|[rw][0-7]{,?<address>,}|v[0-7]{,?<address>,}|e|m[0-7]{,?<address>,}"
+        PrintLine "Commands:"
+        PrintLine "     d - read number of drives"
+        PrintLine "     i - describe disc"
+        PrintLine "     f - freespace ('n'=> new interface, 'o' => old interface)"
+        PrintLine "     r - read disc (DiscOp 1)"
+        PrintLine "     w - write disc (DiscOp 2)"
+        PrintLine "     v - verify disc (DiscOp 0)"
+        PrintLine "     e - eject disc"
+        PrintLine "     m - mount disc"
+        PrintLine "     X - reinitialise ADFS"
+90
+        Pull    "pc"
+
+
+adfs_reinit SIGNATURE
+        Push    "r1, lr"
+        XSWI    OS_Module, ModHandReason_ReInit, ^adfs_name
+        Pull    "r1, pc"
+
+adfs_name = "ADFS", 0
+
+adfs_drives SIGNATURE
+        Push    "r1, lr"
+        SWI     ADFS_Drives
+        PrintMessage "Default drive:", 16
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        PrintMessage "Floppy drives:", 16
+        PrintInteger r1
+        SWI     OS_NewLine
+
+        PrintMessage "Hard drives:", 16
+        PrintInteger r2
+        SWI     OS_NewLine
+
+        Pull    "r1, pc"
+
+
+adfs_freespace SIGNATURE
+        Push    "r1, lr"
+        LDRB    r0, [r1], #1
+        BL      build_discname
+        LDRB    r2, [r1], #1
+        STR     r1, [sp]
+        TEQ     r2, #'n'
+        BEQ     %FT50
+        SWI     ADFS_FreeSpace
+        PrintMessage "Free space:", 16
+        PrintHex r0
+        SWI     OS_NewLine
+
+        PrintMessage "Largest space:", 16
+        PrintHex r1
+        SWI     OS_NewLine
+        B       %FT90
+
+50
+; New interface
+        SWI     ADFS_FreeSpace64
+        PrintMessage "Free space:", 16
+        PrintHex r1
+        SWI     OS_WriteI + '/'
+        PrintHex r0
+        SWI     OS_NewLine
+
+        PrintMessage "Largest space:", 16
+        PrintHex r2
+        SWI     OS_NewLine
+        B       %FT90
+
+90
+        Pull    "r1, pc"
+
+; => r0 = disc number to build name for as character
+;         or '-' for invalid name
+;         or 'u' for 'unknown' name
+; <= r0-> disc name to use
+build_discname SIGNATURE
+        TEQ     r0, #'-'
+        ADREQ   r0, disc_name_invalid
+        MOVEQ   pc, lr
+        TEQ     r0, #'u'
+        ADREQ   r0, disc_name_unknown
+        MOVEQ   pc, lr
+        STRB    r0, disc_name + 1
+        ADR     r0, disc_name
+        MOV     pc, lr
+
+disc_name = ":#", 0
+disc_name_invalid = "$$", 0
+disc_name_unknown = "unknown", 0
+        ALIGN
+
+
+; => R1 -> string to read
+; <= R0 = disc address
+;    R1 -> end of read string
+discop_address SIGNATURE
+        Push    "r1-r3, lr"
+        LDRB    r0, [r1], #1
+        SUBS    r0, r0, #'0'
+        CMP     r0, #10
+        MOVHS   r0, #0
+        BHS     %FT20
+        STR     r1, [sp]
+
+        LDRB    r14, [r1], #1
+        TEQ     r14, #','
+        MOVNE   r0, r0, LSL #29             ; address 0, disc given
+        BNE     %FT20
+
+        MOV     r3, r0
+        XSWI    XOS_ReadUnsigned, #16       ; read the address
+        STR     r1, [sp]
+        LDRB    r14, [r1], #1
+        TEQ     r14, #','
+        STREQ   r1, [sp]
+        ORR     r0, r2, r3, LSL #29
+20
+        Pull    "r1-r3, pc"
+
+
+adfs_discop_readsectors SIGNATURE
+        Push    "r1, lr"
+        BL      discop_address
+        STR     r1, [sp]
+
+; r0 = disc address + drive
+        MOV     r1, #1                      ; Read Sectors, no flags
+        MOV     r2, r0
+        ADRL    r3, buffer
+        MOV     r4, #&200                   ; Transfer size
+
+        MOV     r5, r2                      ; remember base disc address
+        MOV     r6, r3                      ; remember base memory address
+        MOV     r7, r4                      ; size of the data
+
+        PrintMessage "ReadSectors: Address="
+        PrintHex r2
+        PrintMessage ", Size="
+        PrintHex r4
+        SWI     XOS_NewLine
+
+        SWI     ADFS_DiscOp
+
+        SUB     r0, r3, r6
+        PrintMessage "Address increase:", 20
+        PrintHex r0
+        SWI     OS_NewLine
+        PrintMessage "New disc address:", 20
+        PrintHex r2
+        SWI     OS_NewLine
+        PrintMessage "Size unread:", 20
+        PrintHex r4
+        SWI     OS_NewLine
+
+        PrintLine "Data:"
+        XBL     dump_memory, r6, r7, #1
+
+        Pull    "r1, pc"
+
+
+adfs_discop_writesectors SIGNATURE
+        Push    "r1, lr"
+        BL      discop_address
+        STR     r1, [sp]
+
+; r0 = disc address + drive
+        MOV     r1, #2                      ; Write Sectors, no flags
+        MOV     r2, r0
+        ADRL    r3, write_buffer
+        MOV     r4, #&200                   ; Transfer size
+
+        MOV     r5, r2                      ; remember base disc address
+        MOV     r6, r3                      ; remember base memory address
+        MOV     r7, r4                      ; size of the data
+
+        PrintMessage "WriteSectors: Address="
+        PrintHex r2
+        PrintMessage ", Size="
+        PrintHex r4
+        SWI     XOS_NewLine
+
+        SWI     ADFS_DiscOp
+
+        SUB     r0, r3, r6
+        PrintMessage "Address increase:", 20
+        PrintHex r0
+        SWI     OS_NewLine
+        PrintMessage "New disc address:", 20
+        PrintHex r2
+        SWI     OS_NewLine
+        PrintMessage "Size unread:", 20
+        PrintHex r4
+        SWI     OS_NewLine
+
+        Pull    "r1, pc"
+
+
+adfs_discop_verify SIGNATURE
+        Push    "r1, lr"
+        BL      discop_address
+        STR     r1, [sp]
+
+; r0 = disc address + drive
+        MOV     r1, #0                      ; Verify, no flags
+        MOV     r2, r0
+        MOV     r3, #&88000000
+        MOV     r4, #&200                   ; Transfer size
+
+        MOV     r5, r2                      ; remember base disc address
+        MOV     r6, r3                      ; remember base memory address
+        MOV     r7, r4                      ; size of the data
+
+        PrintMessage "ReadSectors: Address="
+        PrintHex r2
+        PrintMessage ", Size="
+        PrintHex r4
+        SWI     XOS_NewLine
+
+        SWI     ADFS_DiscOp
+
+        SUB     r0, r3, r6
+        PrintMessage "Address increase:", 20
+        PrintHex r0
+        PrintMessage " (should be 0)"
+        SWI     OS_NewLine
+        PrintMessage "New disc address:", 20
+        PrintHex r2
+        SWI     OS_NewLine
+        PrintMessage "Size unread:", 20
+        PrintHex r4
+        SWI     OS_NewLine
+
+        Pull    "r1, pc"
+
+
+adfs_describedisc SIGNATURE
+        Push    "r1, lr"
+        LDRB    r0, [r1], #1
+        BL      build_discname
+        STR     r1, [sp]
+
+        PrintLine "DescribeDisc"
+
+        ADRL    r1, disc_record
+        SWI     ADFS_DescribeDisc
+
+        ADRL    r0, disc_record
+        BL      print_disc_record
+
+        Pull    "r1, pc"
+
+
+print_disc_record SIGNATURE
+        Push    "r1, lr"
+        MOV     r1, r0
+        LDRB    r0, [r1, #0]    ; byte
+        PrintMessage "log2secsize:", 16
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        LDRB    r0, [r1, #1]    ; byte
+        PrintMessage "secspertrack:", 16
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        LDRB    r0, [r1, #2]    ; byte
+        PrintMessage "heads:", 16
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        LDRB    r0, [r1, #3]    ; byte
+        PrintMessage "density:", 16
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        LDRB    r0, [r1, #4]    ; byte
+        PrintMessage "idlen:", 16
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        LDRB    r0, [r1, #5]    ; byte
+        PrintMessage "log2bpmb:", 16
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        LDRB    r0, [r1, #6]    ; byte
+        PrintMessage "skew:", 16
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        LDRB    r0, [r1, #7]    ; byte
+        PrintMessage "bootoption:", 16
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        LDRB    r0, [r1, #8]    ; byte
+        PrintMessage "lowsector:", 16
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        LDRB    r0, [r1, #9]    ; byte
+        PrintMessage "nzones:", 16
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        LDRB    r0, [r1, #10]   ; short
+        LDRB    r14, [r1, #11]  ; short
+        ORR     r0, r0, r14, LSL #8
+        PrintMessage "zone_spare:", 16
+        PrintHex r0
+        SWI     OS_NewLine
+
+        LDRB    r0, [r1, #12]   ; short
+        LDRB    r14, [r1, #13]  ; short
+        ORR     r0, r0, r14, LSL #8
+        PrintMessage "root:", 16
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        LDR     r0, [r1, #16]   ; word
+        PrintMessage "disc_size (lo):", 16
+        PrintHex r0
+        SWI     OS_NewLine
+
+        LDRB    r0, [r1, #20]   ; short
+        LDRB    r14, [r1, #21]  ; short
+        ORR     r0, r0, r14, LSL #8
+        PrintMessage "disc_id:", 16
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        ADD     r0, r1, #22     ; string ( FIXME: Might not be 0 terminated, might not be terminated )
+        PrintMessage "disc_name:", 16
+        PrintString r0
+        SWI     OS_NewLine
+
+        LDR     r0, [r1, #32]   ; word
+        PrintMessage "disctype:", 16
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        LDR     r0, [r1, #36]   ; word
+        PrintMessage "disc_size (hi):", 16
+        PrintHex r0
+        SWI     OS_NewLine
+
+        LDRB    r0, [r1, #40]   ; byte
+        PrintMessage "share_size:", 16
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        LDRB    r0, [r1, #41]   ; byte
+        PrintMessage "big_flag:", 16
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        Pull    "r1, pc"
+
+
+adfs_miscop_eject SIGNATURE
+        Push    "r1, lr"
+        LDRB    r0, [r1], #1
+        SUBS    r0, r0, #'0'
+        CMP     r0, #10
+        MOVHS   r0, #0
+        BHS     %FT20
+        STR     r1, [sp]
+20
+        MOV     r1, r0
+        XSWI    ADFS_MiscOp, 5
+        Pull    "r1, pc"
+
+
+adfs_miscop_mount SIGNATURE
+        Push    "r1, lr"
+        LDRB    r0, [r1], #1
+        SUBS    r0, r0, #'0'
+        CMP     r0, #10
+        MOVHS   r1, #0
+        MOVHS   r2, #0
+        BHS     %FT20
+        STR     r1, [sp]
+
+        LDRB    r14, [r1], #1
+        TEQ     r14, #','
+        MOVNE   r1, #0                      ; address 0
+        BNE     %FT20
+
+        MOV     r3, r0
+        XSWI    XOS_ReadUnsigned, #16       ; read the address
+        STR     r1, [sp]
+        LDRB    r14, [r1], #1
+        TEQ     r14, #','
+        STREQ   r1, [sp]
+        MOV     r1, r3
+
+; r0 = drive
+; r1 = disc address
+20
+        MOV     r0, #0                      ; Mount disc
+        ADRL    r3, buffer
+        MOV     r4, #&200                   ; Transfer size
+
+        ADR     r5, disc_record
+        MOV     r6, r2                      ; remember base disc address
+        MOV     r7, r3                      ; remember base memory address
+        MOV     r8, r4                      ; size of the data
+
+        PrintMessage "MountDisc: Address="
+        PrintHex r2
+        PrintMessage ", Size="
+        PrintHex r4
+        SWI     XOS_NewLine
+
+        SWI     ADFS_MiscOp
+
+        SUB     r0, r3, r7
+        PrintMessage "Address increase:", 20
+        PrintHex r0
+        SWI     OS_NewLine
+        PrintMessage "New disc address:", 20
+        PrintHex r2
+        SWI     OS_NewLine
+        PrintMessage "Size unread:", 20
+        PrintHex r4
+        SWI     OS_NewLine
+
+        PrintLine "Data:"
+        XBL     dump_memory, r7, r8, #1
+
+        PrintLine "Disc record:"
+
+        ADRL    r0, disc_record
+        BL      print_disc_record
+
+        Pull    "r1, pc"
+
+
+buffer  % &200
+disc_record % 64
+write_buffer
+        GBLA    cnt
+cnt     SETA    0
+    WHILE cnt < 32
+        = "Written sector!", 10
+cnt     SETA    cnt + 1
+    WEND
+        ASSERT  (. - write_buffer) = 0x200
+
+        GET     s._dump_common
+
+        END
