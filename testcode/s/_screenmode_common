@@ -1,0 +1,180 @@
+; Some common functions for screen mode management
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+show_mode_with_current SIGNATURE
+        CMP     r0, #-1
+        BNE     show_mode
+
+        PrintLine "Current mode"
+        MOV     pc, lr
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+show_mode SIGNATURE
+        Push    "r0-r4, lr"
+        CMP     r0, #-1
+        BNE     %FT20
+
+        PrintLine "Invalid mode"
+        B       %FT90
+
+20
+        CMP     r0, #256
+        BHS     %FT30
+        PrintMessage "Mode number: "
+        PrintInteger r0
+        PrintMessage " = "
+        AND     r1, r0, #127
+        PrintMessage "number "
+        PrintInteger r1
+        TST     r0, #128
+        BEQ     %FT25
+        PrintMessage " + Shadow"
+25
+        SWI     OS_NewLine
+        B       %FT90
+
+30
+        TEQ     r0, #256
+        TEQNE   r0, #&8000
+        BNE     %FT31
+        PrintMessage "Magic sprite-is-pointer marker "
+        PrintHex r0
+        B       %BT25
+
+31
+        TST     r0, #1
+        BNE     %FT60
+        TST     r0, #2
+        BEQ     %FT32
+        PrintMessage "Invalid address (bit 1 set) "
+        PrintHex r0
+        B       %BT25
+
+32
+        ADDS    r1, r0, #4
+        BCS     %FT33
+        SWI     OS_ValidateAddress
+        BCC     %FT34
+33
+        PrintMessage "Invalid address "
+        PrintHex r0
+        B       %BT25
+
+34
+        LDR     r1, [r0]                ; first word descriminates the mode selector from a sprite
+        TST     r1, #1
+        BEQ     %FT40
+
+; Mode selector
+        PrintMessage "Mode selector format "
+        MOV     r2, r1, LSR #1
+        AND     r2, r2, #63
+        PrintInteger r2
+        PrintMessage ", extra flags "
+        BIC     r3, r1, #255
+        PrintHex r3
+        SWI     XOS_NewLine
+        TEQ     r2, #0
+        BNE     %FT38
+
+; Mode selector format 0
+        LDR     r1, [r0, #4]
+        LDR     r2, [r0, #8]
+        LDR     r3, [r0, #12]
+        LDR     r4, [r0, #16]
+        PrintMessage "  Width:", 16
+        PrintInteger r1
+        SWI     XOS_NewLine
+        PrintMessage "  Height", 16
+        PrintInteger r2
+        SWI     XOS_NewLine
+        PrintMessage "  Data format:", 16
+        PrintInteger r3
+        SWI     XOS_NewLine
+        PrintMessage "  Frame rate:", 16
+        PrintInteger r4
+        SWI     XOS_NewLine
+
+        PrintLine "  Mode variables:"
+        ADD     r0, r0, #20
+        ADD     r3, r0, #32*4                   ; maximum variables we'll print is 32
+32
+        LDR     r1, [r0], #4
+        CMP     r1, #-1
+        BEQ     %FT90
+        LDR     r2, [r0], #4
+        PrintMessage "    "
+        PrintInteger r1, 4
+        PrintMessage " : "
+        PrintInteger r2, 4
+        TEQ     r1, #ModeVariable_ModeFlags
+        BNE     %FT36
+        BL      print_modeflags
+
+36
+        SWI     XOS_NewLine
+
+        CMP     r0, r3
+        BLO     %BT32
+        PrintLine "    (too many variables, giving up)"
+        B       %FT90
+
+38
+        PrintLine "  Mode selector format not recognised"
+        B       %FT90
+
+; sprite pointer
+40
+        PrintLine "  Mode is a sprite pointer"
+        ; FIXME: Print what the sprite is?
+        B       %FT90
+
+; mode specifier has bits set, so it's probably a sprite mode word
+60
+        PrintMessage "Sprite mode word: xdpi="
+        MOV     r1, r0, LSL #(32-13)
+        MOV     r1, r1, LSR #(32-12)
+        PrintInteger r1
+
+        PrintMessage ", ydpi="
+        MOV     r1, r0, LSL #(32-26)
+        MOV     r1, r1, LSR #(32-12)
+        PrintInteger r1
+
+        PrintMessage ", type="
+        MOV     r1, r0, LSR #27
+        AND     r1, r1, #15
+        PrintInteger r1
+
+        TST     r0, #1<<31
+        BEQ     %FT65
+        PrintMessage "+alpha"
+65
+        SWI     OS_NewLine
+
+        B       %FT90
+
+90
+        Pull    "r0-r4, pc"
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; => r2 = value
+print_modeflags SIGNATURE
+        Push    "r0, lr"
+        PrintHex r2, 10
+        PrintBitChar r2, 0, 'G'                 ; Graphics mode
+        PrintBitChar r2, 1, 'T'                 ; Teletext mode
+        PrintBitChar r2, 2, 'g'                 ; Gap mode
+        PrintBitChar r2, 3, 'B'                 ; BBC Gap mode
+        PrintBitChar r2, 4, 'H'                 ; Hires mono
+        PrintBitChar r2, 5, 'D'                 ; Double height characters
+        PrintBitChar r2, 6, 'w'                 ; No hardware scroll
+        PrintBitChar r2, 7, 'F'                 ; Full paletted (not 256 colour)
+        PrintBitChar r2, 8, 'i'                 ; Interlaced
+        PrintBitChar r2, 9, 's'                 ; Grayscale palette
+        ; Note: Format is in bits 12-15, FIXME
+        Pull    "r0, pc"
+
+        END

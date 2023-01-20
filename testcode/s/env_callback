@@ -50,11 +50,11 @@ myhandler SIGNATURE
 
 10
         PrintLine "Entered my callback handler"
-        MRS     r1, CPSR                    ; should be user mode at this point
+        MRS     r1, CPSR                    ; should be IRQ32/SVC32 mode at this point
         PrintMessage "CPSR:", 12
         PrintHex r1
-
         SWI     OS_NewLine
+
         PrintMessage "R12:", 12
         PrintHex r0
         SWI     OS_NewLine
@@ -68,6 +68,19 @@ myhandler SIGNATURE
         XSWI    OS_ChangeEnvironment, #CallBackHandler
 
         BL      print_handler
+
+        PrintLine "Dropping to USR32"
+
+        MRS     r1, CPSR
+        BIC     r1, r1, #&1f
+        ORR     r1, r1, #&10
+        MSR     CPSR_c, r1                  ; switch back to USR32
+
+        SWI     OS_NewLine
+; After this SWI, if the OS_ChangeEnvironment call was not effective, we would reenter our
+; handler, which should then abort.
+
+        PrintLine "In USR32"
 
         MOV     r0, #0
         STR     r0, my_r12                  ; flag that we're now done with this handler

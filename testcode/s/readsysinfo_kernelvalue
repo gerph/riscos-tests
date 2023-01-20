@@ -7,19 +7,39 @@
 ReadSysInfoReason_KernelValue_CamEntriesPointer * 0x0
 ReadSysInfoReason_KernelValue_MaxCamEntry       * 0x1
 
+ReadSysInfoReason_KernelValue_UNDSTK            * 0xf
+ReadSysInfoReason_KernelValue_SVCSTK            * 0x10
+ReadSysInfoReason_KernelValue_SysHeapStart      * 0x11
+ReadSysInfoReason_KernelValue_NVECTORS          * 0x18
+ReadSysInfoReason_KernelValue_IRQSTK            * 0x19
+
 
 readsysinfo     ROUT
 
         PrintLine "Single value request"
 
+        MACRO
+        ReadSingleValue $name
         MOV     r0, #6
         MOV     r1, #0
-        MOV     r2, # ReadSysInfoReason_KernelValue_CamEntriesPointer
+        MOV     r2, # ReadSysInfoReason_KernelValue_$name
+        PrintMessage "RSI 6,"
+        PrintInteger r2, 2
+        PrintMessage ": "
+
         SWI     OS_ReadSysInfo
 
-        PrintMessage "RSI 6,0: "
         PrintHex r2
-        SWI     OS_NewLine
+        PrintLine " ($name)"
+        MEND
+
+
+        ReadSingleValue CamEntriesPointer
+        ReadSingleValue UNDSTK
+        ReadSingleValue SVCSTK
+        ReadSingleValue IRQSTK
+        ReadSingleValue SysHeapStart
+        ReadSingleValue NVECTORS
 
 
         PrintLine "Multiple value request"
@@ -40,6 +60,11 @@ readsysinfo     ROUT
         SWI     OS_NewLine
 
         LDR     r0, [r2], #4
+        PrintMessage "RSI 6,25: "
+        PrintHex r0
+        SWI     OS_NewLine
+
+        LDR     r0, [r2], #4
         PrintMessage "Should be &55115511: "
         PrintHex r0
         SWI     OS_NewLine
@@ -49,11 +74,13 @@ readsysinfo     ROUT
 multivalues
         DCD     ReadSysInfoReason_KernelValue_CamEntriesPointer
         DCD     ReadSysInfoReason_KernelValue_MaxCamEntry
+        DCD     ReadSysInfoReason_KernelValue_NVECTORS
         DCD     -1
 
 outputs
         DCD     &88998899
         DCD     &22332233
+        DCD     &77337766
         DCD     &55115511
 
         END

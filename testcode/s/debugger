@@ -274,6 +274,7 @@ next2   LDR     r1, prev2
         MSR     CPSR_c, #16 + 3         ; SVC32
         MSR     CPSR_c, #16 + 0         ; USR32
         MSR     CPSR_c, #0              ; SVC26
+        MSR     CPSR_cxsf, #16 + 3      ; SVC32, clear everything else
         MSR     CPSR_f, #(1<<28)
         MSR     CPSR_f, #(1<<29)
         MSR     CPSR_f, #(1<<30)

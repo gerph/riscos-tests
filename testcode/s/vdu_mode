@@ -12,12 +12,17 @@ MaxMode * 50
 vdu_mode     ROUT
         Push    "r1, lr"
 
+        ADR     lr, %FT90
+        MOV     r8, r1
+        LDRB    r0, [r8]
+        TEQ     r0, #'r'                ; run tests on ReadModeVariable
+        BEQ     rmv_tests
+
+; Listing mode tests
         PrintLine "--- ReadModeVariables"
 
         BL      modelist_headings
 
-        MOV     r8, r1
-        LDRB    r0, [r8]
         ADR     lr, %FT90
         CMP     r0, #32
         BLT     show_all
@@ -53,22 +58,282 @@ show_all SIGNATURE
         CMP     r0, #MaxMode
         BLE     %BT10
 
-; Now test what happens if we read an invalid variable
-        XSWI    XOS_ReadModeVariable, 64
-        ADRVC   r0, badvar_ok
-        ADRVS   r0, badvar_bad
+        Pull    "r1, pc"
+
+
+; Test that ReadModeVariable copes with other forms
+rmv_tests SIGNATURE
+        Push    "r1, lr"
+
+
+; Test what happens if we read an invalid mode number
+        PrintLine "--- Check valid mode values"
+        ADRL    r3, valid_mode_numbers
+        ADRL    r4, goodmode_ok
+        ADRL    r5, goodmode_invalid
+        ADRL    r6, goodmode_bad
+        BL      test_modes_list
+
+
+; Test what happens if we read an invalid mode number
+        PrintLine "--- Check invalid mode values"
+        ADR     r3, invalid_mode_numbers
+        ADRL    r4, badmode_ok
+        ADRL    r5, badmode_invalid
+        ADRL    r6, badmode_bad
+        BL      test_modes_list
+
+
+; Test what happens if we read an invalid variable
+        PrintLine "--- Check invalid variable"
+        XSWI    XOS_ReadModeVariable, 0, 64
+        ADRL    r0, badvar_ok
+        ADRCSL  r0, badvar_invalid
+        ADRVSL  r0, badvar_bad
         SWI     XOS_Write0
         SWI     XOS_NewLine
 
+; Check reading mode variable for sprite types
+        PrintLine "--- Check reading sprite mode variables"
+        MOV     r3, #0
+10
+        MOV     r0, #(90<<1) | 1
+        ORR     r0, r0, #(90<<14)
+        ORR     r0, r0, r3, LSL #27
+        PrintMessage "Check sprite type "
+        PrintInteger r3
+        PrintMessage " : "
+        XSWI    XOS_ReadModeVariable,, 9
+        ADRL    r0, spritemode_ok
+        ADRCSL  r0, spritemode_invalid
+        ADRVSL  r0, spritemode_bad
+        SWI     XOS_Write0
+        SWI     XOS_NewLine
+        ADD     r3, r3, #1
+        TEQ     r3, #10
+        BNE     %BT10
+
+; Check that we actually get an error when an invalid DPI is given
+; (actually depends on configuration)
+        PrintLine "--- Check invalid DPI sprite mode variable"
+
+; HDPI
+        PrintMessage "HDPI 0 : "
+        MOV     r0, #(0<<1) | 1
+        ORR     r0, r0, #(90<<14)
+        ORR     r0, r0, #1<<27
+        XSWI    XOS_ReadModeVariable,, 9
+        ADRL    r0, spritemode_ok
+        ADRCSL  r0, spritemode_invalid
+        ADRVSL  r0, spritemode_bad
+        SWI     XOS_Write0
+        SWI     XOS_NewLine
+
+; VDPI
+        PrintMessage "VDPI 0 : "
+        MOV     r0, #(90<<1) | 1
+        ORR     r0, r0, #(0<<14)
+        ORR     r0, r0, #1<<27
+        XSWI    XOS_ReadModeVariable,, 9
+        ADRL    r0, spritemode_ok
+        ADRCSL  r0, spritemode_invalid
+        ADRVSL  r0, spritemode_bad
+        SWI     XOS_Write0
+        SWI     XOS_NewLine
+
+; Both
+        PrintMessage "Both 0 : "
+        MOV     r0, #(0<<1) | 1
+        ORR     r0, r0, #(0<<14)
+        ORR     r0, r0, #1<<27
+        XSWI    XOS_ReadModeVariable,, 9
+        ADRL    r0, spritemode_ok
+        ADRCSL  r0, spritemode_invalid
+        ADRVSL  r0, spritemode_bad
+        SWI     XOS_Write0
+        SWI     XOS_NewLine
+
+
         Pull    "r1, pc"
 
+
+; Test a list of modes in an array
+; =>    r3 -> the modes table to test
+;       r4 -> message to print when ok (carry clear)
+;       r5 -> message to print when bad mode (carry set)
+;       r6 -> message to print when error returned (suffixed by error message)
+test_modes_list SIGNATURE
+        Push    "r1, lr"
+10
+        LDR     r0, [r3], #4
+        CMP     r0, #-3
+        BEQ     %FT15
+        CMP     r0, #-4                 ; marker for relative pointer
+        BNE     %FT13
+
+        LDR     r14, [r3], #4
+        ADD     r0, r14, r3
+        SUB     r0, r0, #4
+
+13
+        PrintMessage "Check mode "
+        BL      show_mode_with_current
+        PrintMessage "  Result: "
+
+        XSWI    XOS_ReadModeVariable,, 9
+        MOVVC   r2, #0
+        MOVVS   r2, r0
+        MOV     r0, r4              ; ok message
+        MOVCS   r0, r5              ; carry set message
+        MOVVS   r0, r6              ; error message
+        SWI     XOS_Write0
+        TEQ     r2, #0
+        BEQ     %FT14
+        MOV     r0, r2
+        PrintError
+14
+        SWI     XOS_NewLine
+        B       %BT10
+
+15
+        Pull    "r1, pc"
+
+; mode numbers which should return invalid
+invalid_mode_numbers
+        DCD     64
+        DCD     -2
+        DCD     128         ; only invalid because we don't support shadow modes
+        DCD     192
+        DCD     255
+        DCD     256         ; always invalid as it's used as a magic value for sprite pointers
+        DCD     &8000       ; always invalid as it's used as a magic value for sprite pointers
+        DCD     &8000000    ; not valid memory
+        DCD     &7FFFFFFC   ; just shy of the negative space, and aligned
+        DCD     &7FFFFFFD   ; just shy of the negative space, and with bit 0 set
+        DCD     &7FFFFFFE   ; just shy of the negative space, and with bit 1 set
+        DCD     &7FFFFFFF   ; just shy of the negative space, and with bit 0+1 set
+        DCD     -4          ; Marker that this should be a pointer to a block
+        DCD     mode_selector_invalid_format - .
+        DCD     -4          ; Marker that this should be a pointer to a block
+        DCD     mode_selector_invalid_flags - .
+        DCD     -4          ; Marker that this should be a pointer to a block
+        DCD     mode_selector_invalid_width - .
+        DCD     -4          ; Marker that this should be a pointer to a block
+        DCD     mode_selector_invalid_height - .
+        DCD     -4          ; Marker that this should be a pointer to a block
+        DCD     mode_selector_invalid_dataformat - .
+        DCD     -4          ; Marker that this should be a pointer to a block
+        DCD     mode_selector_invalid_repeated_mode_variable - .
+        DCD     -3          ; end marker
+
+mode_selector_invalid_format
+        DCD     1 :OR: (1<<1)               ; format 1, no flags
+mode_selector_invalid_flags
+        DCD     1 :OR: (0<<1) :OR: (1<<8)   ; format 0, bit 8 of flags set
+        DCD     640                         ;   width
+        DCD     480                         ;   height
+        DCD     1                           ;   depth/format
+        DCD     60                          ;   framerate
+        DCD     -1                          ;   no mode vars
+mode_selector_invalid_width
+        DCD     1 :OR: (0<<1)               ; format 0, no flags
+        DCD     0                           ;   width (invalid)
+        DCD     480                         ;   height
+        DCD     1                           ;   depth/format
+        DCD     60                          ;   framerate
+        DCD     -1                          ;   no mode vars
+mode_selector_invalid_height
+        DCD     1 :OR: (0<<1)               ; format 0, no flags
+        DCD     640                         ;   width
+        DCD     0                           ;   height (invalid)
+        DCD     1                           ;   depth/format
+        DCD     60                          ;   framerate
+        DCD     -1                          ;   no mode vars
+mode_selector_invalid_dataformat
+        DCD     1 :OR: (0<<1)               ; format 0, no flags
+        DCD     640                         ;   width
+        DCD     480                         ;   height
+        DCD     17                          ;   depth/format (invalid)
+        DCD     60                          ;   framerate
+        DCD     -1                          ;   no mode vars
+mode_selector_invalid_repeated_mode_variable
+        DCD     1 :OR: (0<<1)               ; format 0, no flags
+        DCD     640                         ;   width
+        DCD     480                         ;   height
+        DCD     1                           ;   depth/format
+        DCD     60                          ;   framerate
+        DCD     ModeVariable_ModeFlags
+        DCD     (1<<2)                      ;   gap mode
+        DCD     ModeVariable_ModeFlags
+        DCD     (1<<2)                      ;   gap mode (invalid)
+        DCD     -1                          ;   no mode vars
+
+
+; mode numbers which shouldn't return invalid
+valid_mode_numbers
+        DCD     -1
+        DCD     0
+        DCD     28
+        ; sprite mode words are tested separately
+        DCD     -4          ; Marker that this should be a pointer to a block
+        DCD     mode_selector_valid_data_format_0 - .
+        DCD     -4          ; Marker that this should be a pointer to a block
+        DCD     mode_selector_valid_has_mode_variables - .
+        DCD     -3          ; end marker
+
+
+mode_selector_valid_data_format_0
+        DCD     1 :OR: (0<<1)               ; format 0, no flags
+        DCD     640                         ;   width
+        DCD     480                         ;   height
+        DCD     1                           ;   depth/format
+        DCD     60                          ;   framerate
+        DCD     -1                          ;   end of mode vars
+
+
+mode_selector_valid_has_mode_variables
+        DCD     1 :OR: (0<<1)               ; format 0, no flags
+        DCD     640                         ;   width
+        DCD     480                         ;   height
+        DCD     1                           ;   depth/format
+        DCD     60                          ;   framerate
+        DCD     ModeVariable_ModeFlags
+        DCD     (1<<2)                      ;   gap mode
+        DCD     -1                          ;   end of mode vars
+
+
+
+spritemode_ok
+        = "no error", 0
+spritemode_invalid
+        = "Invalid (C set)", 0
+spritemode_bad
+        = "ERRORED", 0
+; Negative tests for bad modes
+badmode_ok
+        = "Error: Reading an invalid mode did not report C set", 0
+badmode_invalid
+        = "Reading an invalid mode reported C set", 0
+badmode_bad
+        = "Error: Reading an invalid mode generated an error: ", 0
+; Positive tests for good modes
+goodmode_ok
+        = "Reading a valid mode reported C clear", 0
+goodmode_invalid
+        = "Error: Reading a valid mode reported C set", 0
+goodmode_bad
+        = "Error: Reading a valid mode generated an error: ", 0
+; Negative tests for bad variables
 badvar_ok
-        = "Reading an invalid variable was ok", 0
+        = "Error: Reading an invalid variable did not report C set", 0
+badvar_invalid
+        = "Reading an invalid variable reported C set", 0
 badvar_bad
-        = "Error: Reading an invalid variable didn't generate an error", 0
+        = "Error: Reading an invalid variable generated an error", 0
         ALIGN
 
         GET     s._mode_common
+        GET     s._screenmode_common
 
 
         END

@@ -16,7 +16,13 @@ vdu_char     ROUT
         TEQ     r0, #'w'
         BEQ     vdu_window
 
-        PrintLine "Syntax: r|w"
+        TEQ     r0, #'c'
+        BEQ     vdu_colour
+        TEQ     r0, #'g'
+        BEQ     vdu5_colour         ; this is largely here because it's the same pattern of code,
+                                    ; even though it's not the VDU 4 cursor
+
+        PrintLine "Syntax: r|w|c|g"
         MOV     pc, lr
 
 
@@ -71,6 +77,292 @@ vdu_readchar SIGNATURE
         LDR     r2, =$y
         SWI     XOS_Plot
         MEND
+
+
+; Coloured text
+vdu_colour SIGNATURE
+        LDRB    r9, [r1], #1        ; type of operation
+        TEQ     r9, #'g'            ; GCOL colour operation
+        BEQ     vdu_colour_gcol
+        TEQ     r9, #'o'            ; OS_SetColour
+        BEQ     vdu_colour_ossetcolour
+
+        TEQ     r9, #'i'            ; OS_SetColour invalid
+        BEQ     vdu_colour_ossetcolour_invalid
+
+        PrintLine "Use c[goi]"
+        MOV     pc, lr
+
+
+vdu_colour_gcol SIGNATURE
+        Push    "lr"
+        MOV     r3, #0              ; background flag
+10
+        MOV     r2, #0              ; colour number
+20
+        SWI     OS_WriteI + 17      ; select colour
+        ADD     r0, r2, r3
+        SWI     OS_WriteC
+        ADD     r0, r2, #'0'
+        SWI     OS_WriteC           ; write the number
+        ADD     r2, r2, #1
+        TEQ     r2, #8              ; all colours up to 7
+        BNE     %BT20
+        SWI     OS_NewLine
+
+        ADD     r3, r3, #(1<<7)
+        CMP     r3, #(1<<7)
+        BLE     %BT10
+
+        Pull    "pc"
+
+
+vdu_colour_ossetcolour SIGNATURE
+        Push    "lr"
+
+; regular character plot
+        MOV     r3, #0              ; background flag
+10
+        MOV     r2, #0              ; colour number
+20
+        ORR     r0, r3, #(1<<6)     ; Set text colour
+        XSWI    OS_SetColour,, r2   ; select colour
+        ADD     r0, r2, #'0'
+        SWI     OS_WriteC           ; write the number
+        ADD     r2, r2, #1
+        TEQ     r2, #8              ; all colours up to 7
+        BNE     %BT20
+        SWI     OS_NewLine
+        ADD     r3, r3, #(1<<4)
+        CMP     r3, #(1<<4)
+        BLE     %BT10
+
+; now an EOR character plot - to do that we just fill a line with background colour 1
+; This shouldn't have any effect on the text cursor (on RISC OS Classic it doesn't).
+        XSWI    OS_SetColour, #(1<<6) | (1<<4), #1
+        SWI     OS_WriteI + 32
+        SWI     OS_WriteI + 32
+        SWI     OS_WriteI + 32
+        SWI     OS_WriteI + 32
+        SWI     OS_WriteI + 32
+        SWI     OS_WriteI + 32
+        SWI     OS_WriteI + 32
+        SWI     OS_WriteI + 32
+        SWI     OS_NewLine
+        SWI     OS_WriteI + 11      ; move up a line
+
+        MOV     r3, #3              ; use the EOR action
+
+        MOV     r2, #0              ; colour number
+20
+        ORR     r0, r3, #(1<<6)     ; Set text colour
+        XSWI    OS_SetColour,, r2   ; select colour
+        ADD     r0, r2, #'0'
+        SWI     OS_WriteC           ; write the number
+        ADD     r2, r2, #1
+        TEQ     r2, #8              ; all colours up to 7
+        BNE     %BT20
+        SWI     OS_NewLine
+
+        Pull    "pc"
+
+
+vdu5_colour SIGNATURE
+        LDRB    r9, [r1], #1        ; type of operation
+        TEQ     r9, #'g'            ; GCOL colour operation
+        BEQ     vdu5_colour_gcol
+        TEQ     r9, #'o'            ; OS_SetColour
+        BEQ     vdu5_colour_ossetcolour
+
+        TEQ     r9, #'i'            ; OS_SetColour invalid
+        BEQ     vdu5_colour_ossetcolour_invalid
+
+        PrintLine "Use g[goi]"
+        MOV     pc, lr
+
+
+vdu5_colour_gcol SIGNATURE
+        Push    "lr"
+        MOVE    0, 64
+        SWI     OS_WriteI + 5
+
+        MOV     r3, #0              ; background flag
+10
+        MOV     r2, #0              ; colour number
+20
+        SWI     OS_WriteI + 18      ; select graphics colour
+        SWI     OS_WriteI + 0       ; Set
+        ADD     r0, r2, r3
+        SWI     OS_WriteC
+        ADD     r0, r2, #'0'
+        SWI     OS_WriteC           ; write the number
+        ADD     r2, r2, #1
+        TEQ     r2, #8              ; all colours up to 7
+        BNE     %BT20
+        SWI     OS_NewLine
+
+        ADD     r3, r3, #(1<<7)
+        CMP     r3, #(1<<7)
+        BLE     %BT10
+
+; now an EOR character plot - to do that we just fill a line with background colour 1
+; To do this in VDU5 mode we need to delete characters on the line
+        SWI     OS_WriteI + 18      ; select graphics colour
+        SWI     OS_WriteI + 0       ; Set
+        SWI     OS_WriteI + 128+1   ; Colour 1 (red)
+
+        SWI     OS_WriteI + 32
+        SWI     OS_WriteI + 32
+        SWI     OS_WriteI + 32
+        SWI     OS_WriteI + 32
+        SWI     OS_WriteI + 32
+        SWI     OS_WriteI + 32
+        SWI     OS_WriteI + 32
+        SWI     OS_WriteI + 32
+        SWI     OS_WriteI + 127
+        SWI     OS_WriteI + 127
+        SWI     OS_WriteI + 127
+        SWI     OS_WriteI + 127
+        SWI     OS_WriteI + 127
+        SWI     OS_WriteI + 127
+        SWI     OS_WriteI + 127
+        SWI     OS_WriteI + 127
+        SWI     OS_NewLine
+        SWI     OS_WriteI + 11      ; move up a line
+
+        MOV     r2, #0              ; colour number
+20
+        SWI     OS_WriteI + 18      ; select graphics colour
+        SWI     OS_WriteI + 3       ; EOR
+        ADD     r0, r2, r3
+        SWI     OS_WriteC
+
+        ADD     r0, r2, #'0'
+        SWI     OS_WriteC           ; write the number
+        ADD     r2, r2, #1
+        TEQ     r2, #8              ; all colours up to 7
+        BNE     %BT20
+        SWI     OS_NewLine
+
+        Pull    "pc"
+
+
+vdu5_colour_ossetcolour SIGNATURE
+        Push    "lr"
+        MOVE    0, 64
+        SWI     OS_WriteI + 5
+
+; regular character plot
+        MOV     r3, #0              ; background flag
+10
+        MOV     r2, #0              ; colour number
+20
+        ORR     r0, r3, #(0<<6)     ; Set text colour
+        XSWI    OS_SetColour,, r2   ; select colour
+        ADD     r0, r2, #'0'
+        SWI     OS_WriteC           ; write the number
+        ADD     r2, r2, #1
+        TEQ     r2, #8              ; all colours up to 7
+        BNE     %BT20
+        SWI     OS_NewLine
+        ADD     r3, r3, #(1<<4)
+        CMP     r3, #(1<<4)
+        BLE     %BT10
+
+; now an EOR character plot - to do that we just fill a line with background colour 1
+; To do this in VDU5 mode we need to delete characters on the line
+        XSWI    OS_SetColour, #(0<<6) | (1<<4), #1
+        SWI     OS_WriteI + 32
+        SWI     OS_WriteI + 32
+        SWI     OS_WriteI + 32
+        SWI     OS_WriteI + 32
+        SWI     OS_WriteI + 32
+        SWI     OS_WriteI + 32
+        SWI     OS_WriteI + 32
+        SWI     OS_WriteI + 32
+        SWI     OS_WriteI + 127
+        SWI     OS_WriteI + 127
+        SWI     OS_WriteI + 127
+        SWI     OS_WriteI + 127
+        SWI     OS_WriteI + 127
+        SWI     OS_WriteI + 127
+        SWI     OS_WriteI + 127
+        SWI     OS_WriteI + 127
+        SWI     OS_NewLine
+        SWI     OS_WriteI + 11      ; move up a line
+
+        MOV     r3, #3              ; use the EOR action
+
+        MOV     r2, #0              ; colour number
+20
+        ORR     r0, r3, #(0<<6)     ; Set text colour
+        XSWI    OS_SetColour,, r2   ; select colour
+        ADD     r0, r2, #'0'
+        SWI     OS_WriteC           ; write the number
+        ADD     r2, r2, #1
+        TEQ     r2, #8              ; all colours up to 7
+        BNE     %BT20
+        SWI     OS_NewLine
+
+        Pull    "pc"
+
+
+vdu_colour_ossetcolour_invalid SIGNATURE
+        Push    "lr"
+
+; Text colours
+        SWI     OS_WriteI + 4
+
+        XSWI    OS_SetColour,#(1<<6), #1 ; select colour 1 (good)
+        SWI     OS_WriteI + '1'
+
+        LDR     r1, =66
+        XSWI    OS_SetColour,#(1<<6)    ; select colour 66 outside range, should be colour 2
+        SWI     OS_WriteI + '2'
+
+        LDR     r1, =&103
+        XSWI    OS_SetColour,#(1<<6)    ; select colour 257 outside range, should be colour 3
+        SWI     OS_WriteI + '3'
+
+        LDR     r1, =65536+4
+        XSWI    OS_SetColour,#(1<<6)    ; select colour &10004 outside range, should be colour 4
+        SWI     OS_WriteI + '4'
+
+        LDR     r1, =&10000005
+        XSWI    OS_SetColour,#(1<<6)    ; select colour &10000004 outside range, should be colour 5
+        SWI     OS_WriteI + '5'
+
+        Pull    "pc"
+
+
+vdu5_colour_ossetcolour_invalid SIGNATURE
+        Push    "lr"
+
+; Graphics colours
+        MOVE    0, 64
+        SWI     OS_WriteI + 5
+
+        XSWI    OS_SetColour,#0, #1 ; select colour 1 (good)
+        SWI     OS_WriteI + '1'
+
+        LDR     r1, =66
+        XSWI    OS_SetColour,#0     ; select colour 66 outside range, should be colour 2
+        SWI     OS_WriteI + '2'
+
+        LDR     r1, =&103
+        XSWI    OS_SetColour,#0     ; select colour 257 outside range, should be colour 3
+        SWI     OS_WriteI + '3'
+
+        LDR     r1, =65536+4
+        XSWI    OS_SetColour,#0     ; select colour &10004 outside range, should be colour 4
+        SWI     OS_WriteI + '4'
+
+        LDR     r1, =&10000005
+        XSWI    OS_SetColour,#0     ; select colour &10000004 outside range, should be colour 5
+        SWI     OS_WriteI + '5'
+        Pull    "pc"
+
+        LTORG
 
 
 ; Writing characters in a window

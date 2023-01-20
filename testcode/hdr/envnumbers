@@ -18,4 +18,9 @@ ApplicationSpaceSize * 0xe      ;  14
 CAOPointer * 0xf                ;  15
 UpCallHandler * 0x10            ;  16
 
+BranchThrough0Handler * 0x20    ;  32
+CommandLineArea * 0x21          ;  33
+
+MaxEnvNumber * 0x30             ;  48
+
     END

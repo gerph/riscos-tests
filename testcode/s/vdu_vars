@@ -145,6 +145,7 @@ vdu_vars_graphics SIGNATURE
         ShowVariable HLineAddr, hex
         ShowVariable GcolOraEorAddr, hex
         ShowVariable PolyHLineAddr, hex
+        ShowVariable VideoDisplayNumber
 
         Pull    "r1, pc"
 
@@ -181,6 +182,7 @@ vars_graphicsvars
         DCD     VduVariable_HLineAddr
         DCD     VduVariable_GcolOraEorAddr
         DCD     VduVariable_PolyHLineAddr
+        DCD     VduVariable_VideoDisplayNumber
         DCD     -1
 
 

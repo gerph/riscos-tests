@@ -91,11 +91,15 @@ printbuffersize * 20
 ; -------------------------------------------------------------------------
         MACRO
         PrintString     $regnum, $width
+    [ "$width" <> ""
         STMFD   sp!, {r0-r1}
+    |
+        STMFD   sp!, {r0}
+    ]
     [ "$regnum" <> "r0"
         MOV     r0, $regnum
     ]
-    [ "$regnum" <> "r1"
+    [ "$regnum" <> "r1" :LAND: "$width" <> ""
         MOV     r1, r0
     ]
         SWI     OS_Write0
@@ -109,6 +113,30 @@ printbuffersize * 20
         BPL     %BT40
     ]
     ]
+    [ "$width" <> ""
+        LDMFD   sp!, {r0-r1}
+    |
+        LDMFD   sp!, {r0}
+    ]
+        MEND
+
+; -------------------------------------------------------------------------
+        MACRO
+        PrintStringN    $regnum, $length
+        STMFD   sp!, {r0-r1}
+    [ "$length" = "r0"
+        MOV     r1, $length
+     [ "$regnum" = "r1"
+        LDR     r0, [sp, #4]
+     ]
+    ]
+    [ "$regnum" <> "r0" :LAND: "$length" <> "r0"
+        MOV     r0, $regnum
+    ]
+    [ "$length" <> "r1" :LAND: "$length" <> "r0"
+        MOV     r1, $length
+    ]
+        SWI     OS_WriteN
         LDMFD   sp!, {r0-r1}
         MEND
 

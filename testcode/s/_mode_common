@@ -12,7 +12,8 @@ modelist_headings SIGNATURE
 
 ; Headings
         PrintMessage "M#", 4
-        PrintMessage "V?", 3
+        PrintMessage "CV?", 4       ; check valid
+        PrintMessage "RV?", 4       ; read valid
         PrintMessage "Flags", 21
         PrintMessage "TW", 6
         PrintMessage "TH", 5
@@ -44,17 +45,28 @@ modelist_variables SIGNATURE
 
 ; Check Mode Valid
         XSWI    XOS_CheckModeValid, r9
-        MOVCC   r0, #'V'                        ; Valid mode
+        MOV     r0, #'V'                        ; Valid mode
         MOVCS   r0, #'x'                        ; invalid mode
         MOVVS   r0, #'E'                        ; CheckModeValid reported an error?!
 30
         SWI     XOS_WriteC
         SWI     XOS_WriteI + ' '
+        SWI     XOS_WriteI + '/'
         SWI     XOS_WriteI + ' '
 
 ; Now read the variables
         XSWI    XOS_ReadModeVariable, r9, ModeVariable_ModeFlags
-        BVS     %FT90
+        MOV     r0, #'V'                        ; Valid mode
+        MOVCS   r0, #'x'                        ; invalid mode
+        MOVVS   r0, #'E'                        ; CheckModeValid reported an error?!
+
+        SWI     XOS_WriteC
+        TEQ     r0, #'V'
+        BNE     %FT90
+
+        SWI     XOS_WriteI + ' '
+        SWI     XOS_WriteI + ' '
+        SWI     XOS_WriteI + ' '
         PrintHex r2, 10
 
         PrintBitChar r2, 0, 'G'                 ; Graphics mode
@@ -116,12 +128,9 @@ modelist_variables SIGNATURE
         SWI     XOS_WriteI + ' '
         PrintModeVariable ModeVariable_YWindLimit, 5
 
+90
         SWI     XOS_NewLine
 
-        Pull    "r0-r4, r9, pc"
-
-90
-        PrintLine "Invalid"
         Pull    "r0-r4, r9, pc"
 
         END

@@ -627,6 +627,7 @@ Portable_ReadFeatures DEFINESWI 0x00042FC5                     ;  &42FC5
 Portable_Idle DEFINESWI 0x00042FC6                             ;  &42FC6
 Portable_Stop DEFINESWI 0x00042FC7                             ;  &42FC7
 Portable_Status DEFINESWI 0x00042FC8                           ;  &42FC8
+Portable_ReadSensor DEFINESWI 0x00042FD2                           ;  &42FD2
 
 ; Generated from /Users/charles/projects/RO/riscos/Export/Hdr/Interface/RAMFS
 RamFS_DiscOp DEFINESWI 0x00040780                              ;  &40780

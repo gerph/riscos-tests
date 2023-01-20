@@ -25,6 +25,9 @@ set_var_value  ROUT
         MOV     r9, #TYPE_STRING        ; default type = string (will GSTrans first)
 
         LDRB    r0, [r1]                ; what type of set is this?
+        TEQ     r0, #'X'                ; extended operation
+        BEQ     extended_set
+
         TEQ     r0, #'+'                ; this is one that we want to set the type of.
         BNE     %FT09
 
@@ -48,6 +51,7 @@ set_var_value  ROUT
 syntax
         PrintLine "Syntax: var_set -<variable>"
         PrintLine "        var_set [+n|+m|+e|+l] <variable> <value>"
+        PrintLine "        var_set X[rwe] <variable> [<value>]"
         MOV     pc, lr
 
 ; skip to variable name
@@ -110,6 +114,7 @@ syntax
         SUB     r7, r7, #1              ; do not include the terminator
 
 20
+write_variable_value
 
         PrintMessage "SetVar: ", 16
         PrintString r5
@@ -161,6 +166,7 @@ syntax
         MOV     r4, #TYPE_NATURAL
 
 50
+show_variable_value
 ; Now show the value, so we can see if it was done properly
         MOV     r0, r5
         ADR     r1, valuebuffer
@@ -209,5 +215,122 @@ syntax
 
 null
         = "<null>", 0
+
+        ALIGN
+
+; r1 -> the type of set operation:
+;           c = create code variable
+;           r = create and read code variable
+;           w = create and write a code variable
+;           e = create and write a code variable that errors
+extended_set SIGNATURE
+        ADD     r1, r1, #1
+        LDRB    r8, [r1], #1                        ; remember the operation type
+        CMP     r8, #' '
+        BLS     syntax
+
+        LDRB    r0, [r1], #1
+        TEQ     r0, #' '
+        BNE     syntax
+
+        MOV     r7, r1
+; r7-> the variable to set
+10
+        LDRB    r0, [r1], #1
+        CMP     r0, #' '
+        BHI     %BT10
+        MOV     r0, #0
+        STREQB  r0, [r1, #-1]
+        STRNEB  r0, [r1, #-1]!
+        MOV     r6, r1
+; r6-> the second parameter
+
+
+; Whatever happens we're going to create the code variable
+
+        PrintMessage "Create code variable: "
+        PrintString r7
+        SWI     OS_NewLine
+
+        MOV     r0, r7
+        ADR     r1, my_code_var
+        MOV     r2, #my_code_var_end - my_code_var
+        MOV     r3, #0
+        MOV     r4, #TYPE_CODE
+        MOV     r5, r12                                 ; extended interface to use code workspace
+        SWI     OS_SetVarVal
+
+; the code variable has now been created
+
+        TEQ     r8, #'r'
+        MOVEQ   r5, r7
+        BEQ     show_variable_value
+
+        TEQ     r8, #'w'
+        BNE     %FT50
+        MOV     r5, r7
+
+        MOV     r1, r6
+20
+        LDRB    r0, [r1], #1
+        CMP     r0, #' '
+        BHI     %BT20
+        SUB     r7, r1, r6                              ; length of value to write
+        SUB     r7, r7, #1                              ; omit the terminator
+
+        MOV     r9, #TYPE_STRING
+        B       write_variable_value
+
+50
+        TEQ     r8, #'e'
+        BNE     syntax
+
+        PrintLine "Trying to generate an error from OS_SetVarVal"
+        MOV     r5, r7
+        ADR     r6, trigger_error_string
+        MOV     r7, #1
+        MOV     r9, #TYPE_STRING
+        B       write_variable_value
+
+
+trigger_error_string = '!'
+
+
+my_code_var SIGNATURE
+        B       my_code_var_write
+        B       my_code_var_read
+
+my_code_var_write SIGNATURE
+        Push    "lr"
+        PrintMessage "Called write code variable: value="
+        PrintStringN r1, r2
+        SWI     OS_NewLine
+        LDRB    r0, [r1]
+        TEQ     r0, #'!'
+        BNE     %FT30
+        ADR     r0, error_failed_write
+        SETV
+        Pull    "pc"
+30
+        Pull    "pc"
+
+
+my_code_var_read SIGNATURE
+        Push    "lr"
+        PrintLine "Called read code variable"
+        ADR     r0, my_code_var_value
+        MOV     r2, #?my_code_var_value
+        Pull    "pc"
+
+my_code_var_value = "My value"
+        = "X"
+        ALIGN
+
+error_failed_write
+        DCD     1234
+        = "Failed to write code variable", 0
+        ALIGN
+
+my_code_var_end
 
         END

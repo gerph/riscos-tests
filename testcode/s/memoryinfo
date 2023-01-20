@@ -5,6 +5,8 @@
         GET     hdr.printmacros
         GET     hdr.macros
 
+OSMemoryReason_ReadPhysicalTableSize * 6
+OSMemoryReason_ReadPhysicalTable * 7
 OSMemoryReason_Amounts * 8
 
 OSMemoryReason_Amounts_DRAM * 0x100
@@ -18,8 +20,10 @@ memoryinfo     ROUT
         LDRB    r0, [r1], #1
         TEQ     r0, #'a'
         BEQ     memory_amounts
+        TEQ     r0, #'t'
+        BEQ     memory_table
 
-        PrintLine "Syntax: memoryinfo [a]"
+        PrintLine "Syntax: memoryinfo [at]"
         SWI     XOS_Exit
 
 
@@ -51,5 +55,96 @@ memory_amounts SIGNATURE
         ShowMemory OSMemoryReason_Amounts_SoftROM
 
         MOV     pc, lr
+
+        LTORG
+
+
+memory_table SIGNATURE
+; Note: This seems to crash on Gerph's Select, writing beyond the RMA.
+        PrintLine "Physical memory table:"
+
+        XSWI    OS_Memory, OSMemoryReason_ReadPhysicalTableSize
+
+        PrintMessage "Table size: "
+        PrintInteger r1
+        SWI     OS_NewLine
+
+        PrintMessage "Page size:  "
+        PrintInteger r2
+        SWI     OS_NewLine
+
+        MOV     r3, r1
+        CMP     r3, #?physical_table
+        BHI     %FT90                           ; physical table is too big for us here
+
+        XSWI    OS_Memory, OSMemoryReason_ReadPhysicalTable, ^physical_table
+
+        PrintLine "Table:"
+
+        MOV     r4, #0                          ; page number
+        ADR     r5, table_chars
+
+table_row_size * 64                             ; 64 pages = 4K * 64 = 256 K per row
+
+; start a row
+10
+        PrintInteger r4, 8
+        PrintMessage ": "
+        MOV     r7, #0                          ; counter in the row
+
+        MACRO
+        ShowTableNibble $reg
+        AND     r8, $reg, #15
+        LDRB    r0, [r5, r8]
+        SWI     OS_WriteC
+        MEND
+
+20
+        CMP     r4, r3, LSL #1                  ; have we reached the end of the list
+        BHS     %FT60
+
+; we always report 2 values - assume that the table is even in length
+        LDRB    r6, [r1], #1
+        ShowTableNibble r6
+        MOV     r6, r6, LSR #4
+        ShowTableNibble r6
+
+        ADD     r4, r4, #2
+        ADD     r7, r7, #2
+        CMP     r7, #table_row_size
+        BLO     %BT20
+
+60
+        SWI     OS_NewLine
+
+        CMP     r4, r3, LSL #1                  ; have we reached the end of the list
+        BLO     %BT10
+
+90
+        MOV     pc, lr
+
+
+table_chars
+; allocatable memory (caps if it's available)
+        =       '?'                             ; allocatable but no memory ?
+        =       'D'                             ; DRAM
+        =       'V'                             ; VRAM
+        =       'R'                             ; ROM
+        =       'I'                             ; I/O page
+        =       '5'                             ; undefined
+        =       '6'                             ; undefined
+        =       '7'                             ; undefined
+; unallocatable memory (lower if unavailable)
+        =       '.'                             ; no memory
+        =       'd'                             ; DRAM
+        =       'v'                             ; VRAM
+        =       'r'                             ; ROM
+        =       'i'                             ; I/O page
+        =       '%'                             ; undefined (shifted versions of the others)
+        =       '^'                             ; undefined
+        =       '&'                             ; undefined
+
+
+physical_table  % 1024 * 128                    ; enough for 512 MiB?
 
         END
