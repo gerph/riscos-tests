@@ -1,0 +1,362 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.modhand
+        GET     hdr.services
+        GET     hdr.macros
+        GET     hdr.printmacros
+
+        DCD     0               ; offset to code    start code
+        DCD     init            ; offset to code    initialisation code
+        DCD     final           ; offset to code    finalisation code
+        DCD     0               ; offset to code    service call handler
+        DCD     title           ; offset to string  title string
+        DCD     help            ; offset to string  help string
+        DCD     commands        ; offset to table   help and command keyword table
+
+; optional bits
+        DCD     0               ; number            SWI chunk base number (optional)
+        DCD     0               ; offset to code    SWI handler code (optional)
+        DCD     0               ; offset to table   SWI decoding table (optional)
+        DCD     0               ; offset to code    SWI decoding code (optional)
+        DCD     0               ; offset to code    Messages filename (optional)
+        DCD     modflags        ; offset to table   Messages filename (optional)
+
+modflags
+        DCD     1<<0
+
+title   =       "ModuleWithCommands", 0
+help    =       "ModuleWithCommands", 9, "1.00 (11 Jun 2023) A test of command dispatch", 0
+
+workspace_size * 1024
+
+commands
+        MACRO
+        TestCommand $suffix, $map
+        = "TestCommand$suffix", 0
+        ALIGN
+        DCD     testcommand_code$suffix
+        DCD     &FF0000 :OR: ($map << 8)   ; min=0, max=255, gstrans first parameter
+        DCD     testcommand_syntax
+        DCD     testcommand_help
+        MEND
+
+        TestCommand 0000, 2_0000
+        TestCommand 0001, 2_0001
+        TestCommand 0010, 2_0010
+        TestCommand 0011, 2_0011
+        TestCommand 0100, 2_0100
+        TestCommand 0101, 2_0101
+        TestCommand 0110, 2_0110
+        TestCommand 0111, 2_0111
+        TestCommand 1000, 2_1000
+        TestCommand 1001, 2_1001
+        TestCommand 1010, 2_1010
+        TestCommand 1011, 2_1011
+        TestCommand 1100, 2_1100
+        TestCommand 1101, 2_1101
+        TestCommand 1110, 2_1110
+        TestCommand 1111, 2_1111
+
+        = "RunTests", 0
+        ALIGN
+        DCD     runtests_code
+        DCD     &00000000       ; no parameters
+        DCD     runtests_syntax
+        DCD     runtests_help
+
+        = 0
+
+testcommand_syntax
+        = "Syntax: *TestCommand<suffix> <parameters>", 0
+testcommand_help
+        = "*TestCommand<suffix> reports on what it received as parameters. "
+        = "The suffix is the binary GSTrans map.", 0
+
+runtests_syntax
+        = "Syntax: *RunTests", 0
+runtests_help
+        = "*RunTests runs a bunch of tests and reports on the status of each.", 0
+
+        ALIGN
+
+init ROUT
+        STMFD   sp!, {lr}
+
+; claim workspace
+        MOV     r0, #ModHandReason_Claim
+        MOV     r3, #workspace_size
+        SWI     OS_Module
+        BVS     %FT99
+        STR     r2, [r12]
+
+        CMP     r0, r0          ; clear V
+99
+        LDMFD   sp!, {pc}
+
+
+final ROUT
+        STMFD   sp!, {lr}
+
+; free workspace
+        MOV     r0, #ModHandReason_Free
+        LDR     r2, [r12]
+        SWI     OS_Module
+
+        MOVVC   r2, #0
+        STRVC   r2, [r12]
+
+99
+        LDMFD   sp!, {pc}
+
+
+        MACRO
+        TestCommandCode $suffix, $map
+testcommand_code$suffix SIGNATURE
+        STMFD   sp!, {r1-r12, lr}
+        MOV     r2, #$map
+        B       testcommand_code
+        MEND
+
+
+        TestCommandCode 0000, 2_0000
+        TestCommandCode 0001, 2_0001
+        TestCommandCode 0010, 2_0010
+        TestCommandCode 0011, 2_0011
+        TestCommandCode 0100, 2_0100
+        TestCommandCode 0101, 2_0101
+        TestCommandCode 0110, 2_0110
+        TestCommandCode 0111, 2_0111
+        TestCommandCode 1000, 2_1000
+        TestCommandCode 1001, 2_1001
+        TestCommandCode 1010, 2_1010
+        TestCommandCode 1011, 2_1011
+        TestCommandCode 1100, 2_1100
+        TestCommandCode 1101, 2_1101
+        TestCommandCode 1110, 2_1110
+        TestCommandCode 1111, 2_1111
+
+
+; r0 -> command tail
+; r1 = number of parameters supplied by the OS
+; r2 = the code entry point that was called.
+; r12-> workspace of 1024 bytes
+;
+; We output a string :
+; <status of nargs><status of tail> : <nargs>[!=<expected args>] : <tail>[ != <expected tail>]
+testcommand_code SIGNATURE
+        LDR     r12, [r12]
+
+; Write out the two statuses
+
+        Push    "r0, r1"
+        ADRL    r8, expected_nargs
+        LDR     r14, [r8, #0]
+        TEQ     r14, r1
+        MOVEQ   r0, #'P'
+        MOVNE   r0, #'F'
+        MOV     r4, r0
+        SWI     OS_WriteC
+
+        LDR     r0, [sp]    ; retrieve the tail
+        LDR     r1, [r8, #expected_tail - expected_nargs]
+        BL      strcmp      ; compare the tails
+        MOVEQ   r0, #'P'
+        MOVNE   r0, #'F'
+        MOV     r5, r0
+        SWI     OS_WriteC
+        Pull    "r0, r1"
+
+; r4 = P or F depending on nargs mismatch
+; r5 = P or F depending on tail mismatch
+
+        TEQ     r4, #'F'
+        TEQNE   r5, #'F'
+        LDREQ   r14, [r8, #count_fails - expected_nargs]
+        ADDEQ   r14, r14, #1
+        STREQ   r14, [r8, #count_fails - expected_nargs]
+
+        PrintMessage " : "
+
+; Print the number of arguments
+        PrintInteger r1, 2
+
+        TEQ     r4, #'P'
+        BEQ     %FT20
+; nargs failed, so print '!=expected'
+        PrintMessage "!="
+        LDR     r14, [r8]
+        PrintInteger r14, 2
+        B       %FT30
+
+20
+; nargs ok
+        PrintMessage "    "
+
+30
+
+        PrintMessage " : "
+
+; Print the tail
+        SWI     OS_WriteI + "<"
+        PrintString r0
+        SWI     OS_WriteI + ">"
+
+        TEQ     r5, #'P'
+        BEQ     %FT40
+
+; tail mismatched
+        PrintMessage " != "
+        LDR     r0, [r8, #expected_tail - expected_nargs]
+        SWI     OS_WriteI + "<"
+        PrintString r0
+        SWI     OS_WriteI + ">"
+
+        B       %FT50
+
+40
+; tail ok
+50
+
+        SWI     OS_NewLine
+
+
+        CMP     r0, r0          ; clear V
+        LDMFD   sp!, {r1-r12, pc}
+
+
+runtests_code SIGNATURE
+        Push    "r0-r12, r14"
+        LDR     r12, [r12]
+
+        XSWI    OS_CLI, ^%FA15
+        B       %FT20
+15
+        = "Set Variable Value", 0
+        ALIGN
+20
+
+        MACRO
+        RunTest $suffix, $input, $expected_tail, $expected_nargs
+        PrintMessage "GSTrans map: $suffix : "
+        MOV     r0, #$expected_nargs
+        ADRL    r1, expected_nargs
+        STR     r0, [r1, #0]
+        ADR     r0, %FA30
+        STR     r0, [r1, #expected_tail - expected_nargs]
+        ADR     r0, %FA40
+        SWI     XOS_CLI
+        BVC     %FA50
+        PrintMessage "ERROR: "
+        PrintError
+        PrintMessage " (for input <"
+        ADR     r0, %FA35
+        PrintString r0
+        PrintLine ">)"
+        B       %FA50
+
+    [ "$expected_tail" = "$input"
+        ; tiny optimisation if the strings are the same, because I can't help myself
+40
+        = "TestCommand$suffix "
+30
+35
+        = "$input", 0
+    |
+40
+        = "TestCommand$suffix "
+35
+        = "$input", 0
+30
+        = "$expected_tail", 0
+    ]
+        ALIGN
+50
+        MEND
+
+; >>> TESTS START HERE
+        RunTest 0000, "Hello", "Hello", 1
+        RunTest 0000, "Hello There", "Hello There", 2
+        RunTest 0000, " Hello There", "Hello There", 2
+        RunTest 0000, " Hello  There", "Hello  There", 2
+        RunTest 0000, " Hello  There  RISC OS", "Hello  There  RISC OS", 4
+        RunTest 0000, "<variable>", "<variable>", 1
+        RunTest 0001, "<variable>", "Value ", 1
+        RunTest 0001, " Hello  There  RISC OS", "Hello There RISC OS ", 4
+        RunTest 0010, " Hello  There  RISC OS", "Hello There RISC OS ", 4
+        RunTest 0100, " Hello  There  RISC OS", "Hello There RISC OS ", 4
+        RunTest 1000, " Hello  There  RISC OS", "Hello There RISC OS ", 4
+
+; Quoted strings
+        RunTest 0000, "\x22Hello\x22", "\x22Hello\x22", 1
+        RunTest 0000, "Hello \x22There\x22", "Hello \x22There\x22", 2
+        RunTest 0001, "\x22Hello\x22", "Hello ", 1              ; RISC OS Classic returns this as <Hello " > which seems like a bug
+        RunTest 0010, "\x22Hello\x22", "\x22Hello\x22 ", 1
+        RunTest 0000, "\x22Hello There\x22", "\x22Hello There\x22", 1
+        RunTest 0001, "\x22Hello There\x22", "Hello There ", 1  ; RISC OS Classic returns this as 2 parameters, and the tail: 'Hello There " '
+        RunTest 0000, "\x22Hello There\x22 ", "\x22Hello There\x22 ", 1
+        RunTest 0001, "\x22Hello There\x22 ", "Hello There ", 1
+        RunTest 0001, "\x22Hello There\x22 RISC OS", "Hello There RISC OS ", 3
+        RunTest 0010, "\x22Hello There\x22 RISC OS", "\x22Hello There\x22 RISC OS ", 3
+
+; Quotes in odd places
+        RunTest 0000, "Hello\x22There", "Hello\x22There", 1
+
+; Escaping
+        RunTest 0000, "[|\x22] Quote", "[|\x22] Quote", 2
+        RunTest 0001, "[|\x22] Quote", "[\x22] Quote ", 2
+
+; trailing space tests
+        RunTest 0000, "TrailingSpace ", "TrailingSpace ", 1
+        RunTest 0001, "TrailingSpace ", "TrailingSpace ", 1
+        RunTest 0000, "TrailingSpaces  ", "TrailingSpaces  ", 1
+        RunTest 0001, "TrailingSpaces  ", "TrailingSpaces ", 1
+
+; Empty parameters
+        RunTest 0000, "\x22\x22", "\x22\x22", 1
+        RunTest 0001, "\x22\x22", "\x22\x22 ", 1    ; This errors on RISC OS Classic and Pyromaniac
+        RunTest 0000, "X \x22\x22", "X \x22\x22", 2
+        RunTest 0001, "X \x22\x22", "X \x22\x22 ", 2
+
+; <<< TESTS END HERE
+
+        SWI     OS_NewLine
+        LDR     r0, count_fails
+        TEQ     r0, #0
+        BEQ     %FT90
+
+        PrintMessage "FAILED "
+        PrintInteger r0
+        PrintLine " tests"
+
+90
+        CMP     r0, r0          ; clear V
+        Pull    "r0-r12, pc"
+
+expected_tail   DCD     0
+expected_nargs  DCD     0
+count_fails     DCD     0
+
+; compare strings in pointers r0 and r1. both are control terminated.
+; return EQ if same, NE if different
+strcmp SIGNATURE
+        Push    "r0, r1, r2, r3"
+
+10
+        LDRB    r2, [r0], #1
+        LDRB    r3, [r1], #1
+        CMP     r2, #32
+        MOVLT   r2, #0
+        CMP     r3, #32
+        MOVLT   r3, #0
+        TEQ     r2, r3
+        BNE     %FT90           ; exit with NE
+        TEQ     r2, #0
+        BNE     %BT10
+
+90
+        Pull    "r0, r1, r2, r3"
+        MOV     pc, lr
+
+        END
