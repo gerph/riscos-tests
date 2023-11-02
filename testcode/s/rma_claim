@@ -45,41 +45,45 @@ claim SIGNATURE
         MOV     pc, lr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; d+[cf]
+;   + means add an extra 32 bytes on before and after
+;   c means claim
+;   f means claim then free
 claim_display SIGNATURE
         Push    "lr"
         PrintLine "Display data in block"
+        MOV     r5, #0              ; extra to dump
+        MOV     r4, #16             ; size to allocate
         LDRB    r0, [r1], #1
+        TEQ     r0, #'+'
+        MOVEQ   r5, #32
+        LDREQB  r0, [r1], #1
         TEQ     r0, #'c'
         BEQ     %FT10
         TEQ     r0, #'f'
         BEQ     %FT20
-        PrintLine "Syntax: rma_claim d[cf]"
+        PrintLine "Syntax: rma_claim d+?[cf]"
         Pull    "pc"
 
 10
         PrintLine "  after claim"
-        XSWI    OS_Module, #ModHandReason_Claim,,, #16
+        XSWI    OS_Module, #ModHandReason_Claim,,, r4
         B       %FT40
 
 20
         PrintLine "  after claim and free"
-        XSWI    OS_Module, #ModHandReason_Claim,,, #16
+        XSWI    OS_Module, #ModHandReason_Claim,,, r4
         MOV     r3, r2
         XSWI    OS_Module, #ModHandReason_Free
         MOV     r2, r3
         B       %FT40
 
 40
-        MOV     r1, #0
-50
-        PrintMessage "Offset "
-        PrintInteger r1, 8
-        LDR     r0, [r2, r1]
-        PrintHex r0
-        SWI     OS_NewLine
-        ADD     r1, r1, #4
-        TEQ     r1, #16
-        BNE     %BT50
+        MOV     r0, r2
+        ADD     r1, r4, r5
+        MOV     r2, #4
+        RSB     r3, r5, #0            ; start offset
+        BL      dump_memory_from_offset
 
         Pull    "pc"
 
@@ -258,5 +262,7 @@ claim_free_inside_with_size SIGNATURE
         PrintLine "Freed"
 
         MOV     pc, lr
+
+        GET     s._dump_common
 
         END
