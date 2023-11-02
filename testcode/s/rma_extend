@@ -22,6 +22,8 @@ rma_extend     ROUT
         BEQ     reduce_to_negative
         TEQ     r0, #'m'
         BEQ     extend_massively
+        TEQ     r0, #'n'
+        BEQ     extend_null
 
 ; invalid extension tests from the free code
         TEQ     r0, #'b'
@@ -100,6 +102,47 @@ extend SIGNATURE
         MOV     pc, lr
 
         LTORG
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+extend_null SIGNATURE
+        PrintLine "Extend a block without actually changing size"
+
+        PrintLine "(claim)"
+        XSWI    OS_Module, #ModHandReason_Claim,,, #64
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+        MOV     r6, r2
+
+        LDR     r5, [r2, #-4]
+        PrintMessage "Actual size:", 15
+        PrintInteger r5
+        SWI     OS_NewLine
+
+        PrintLine "(extend)"
+        XSWI    OS_Module, #ModHandReason_ExtendBlock,,,0
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        LDR     r4, [r2, #-4]
+        PrintMessage "Actual size:", 15
+        PrintInteger r4
+        SWI     OS_NewLine
+
+        TEQ     r2, r6
+        BEQ     %FT80
+        PrintLine "Warning: Address changed"
+
+80
+        TEQ     r4, r5
+        BEQ     %FT90
+        PrintLine "ERROR: Size changed"
+
+90
+        MOV     pc, lr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 extend_massively SIGNATURE
