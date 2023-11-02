@@ -5,6 +5,8 @@
         GET     hdr.printmacros
         GET     hdr.macros
 
+OSByte_ResetSystemChars         *       &19
+
 ; character testing - for use with the small frame buffer
 vdu_char     ROUT
 
@@ -16,13 +18,24 @@ vdu_char     ROUT
         TEQ     r0, #'w'
         BEQ     vdu_window
 
+        TEQ     r0, #'k'
+        BEQ     vdu_clearregion
+
+        TEQ     r0, #'d'
+        BEQ     vdu_definechar
+
         TEQ     r0, #'c'
         BEQ     vdu_colour
         TEQ     r0, #'g'
         BEQ     vdu5_colour         ; this is largely here because it's the same pattern of code,
                                     ; even though it's not the VDU 4 cursor
 
-        PrintLine "Syntax: r|w|c|g"
+        PrintLine "Syntax: r|w|c|g|k"
+        PrintLine "  r - read character"
+        PrintLine "  w - window operations"
+        PrintLine "  c - colours"
+        PrintLine "  g - VDU 5 colours"
+        PrintLine "  d - define characters (and read them)"
         MOV     pc, lr
 
 
@@ -94,6 +107,8 @@ vdu_colour SIGNATURE
         MOV     pc, lr
 
 
+; FIXME: This is just misnamed, I think. We're expecting it to set the text colour, and that's
+;        what it does with VDU 17.
 vdu_colour_gcol SIGNATURE
         Push    "lr"
         MOV     r3, #0              ; background flag
@@ -365,6 +380,60 @@ vdu5_colour_ossetcolour_invalid SIGNATURE
         LTORG
 
 
+; Clear a region: k[0-9A][0-9A]
+vdu_clearregion SIGNATURE
+        Push    "lr"
+
+; fill the screen with the '@' character
+        LDRB    r9, [r1], #1        ; type of operation
+        Push    "r1"
+        XSWI    OS_ReadModeVariable, -1, 1
+        MOV     r5, r2              ; r5 = srcrcol
+        XSWI    OS_ReadModeVariable, -1, 2
+        MOV     r6, r2              ; r6 = scrbrow
+
+        ADD     r0, r5, #1
+        ADD     r1, r6, #1
+        BL      vdu_filltext        ; fill with '@'
+        Pull    "r1"
+
+; Include a marker for the cursor position
+        SWI     OS_WriteI + 31
+        SWI     OS_WriteI + 0
+        SWI     OS_WriteI + 2
+        PrintMessage "Cursor><"
+        SWI     OS_WriteI + 8
+
+; Get the start position
+        TEQ     r9, #'A'
+        MOVEQ   r9, #'0'+10
+        SUB     r2, r9, #'0'
+
+        LDRB    r9, [r1], #1        ; type of operation
+        MOVEQ   r9, #'0'+10
+        SUB     r3, r9, #'0'
+
+; VDU 23,8,base_start,base_end,x1,y1,x2,y2,0,0
+
+        SWI     OS_WriteI + 23
+        SWI     OS_WriteI + 8
+        XSWI    OS_WriteC, r2
+        XSWI    OS_WriteC, r3
+        SWI     OS_WriteI + 0   ; x1
+        SWI     OS_WriteI + 0   ; y1
+        SWI     OS_WriteI + 0   ; x2
+        SWI     OS_WriteI + 0   ; y2
+        SWI     OS_WriteI + 0
+        SWI     OS_WriteI + 0
+
+; Move down a couple of lines
+        SWI     OS_WriteI + 13
+        SWI     OS_WriteI + 10
+        SWI     OS_WriteI + 10
+
+        Pull    "pc"
+
+
 ; Writing characters in a window
 vdu_window SIGNATURE
         Push    "lr"
@@ -399,18 +468,33 @@ scrtop * 10 * 16
         SWI     XOS_WriteI + 8      ; right
         SWI     XOS_WriteI + 2      ; top
 
-        TEQ     r9, #'g'            ; add a graphics window (
+        TEQ     r9, #'g'            ; add a graphics window (around the text window)
         BEQ     vdu_window_graphics
 
 vdu_window_more
+        TEQ     r9, #'b'            ; change background colour
+        BNE     %FT20
+        SWI     OS_WriteI + 17      ; select text colour
+        LDRB    r9, [r1], #1        ; type of operation
+        SUB     r0, r9, #'0'
+        CMP     r0, #10
+        MOVHS   r0, #1              ; if they didn't give a number, use colour 1
+        SUBHS   r1, r1, #1
+        LDRLOB  r9, [r1], #1        ; type of operation
+        ADD     r0, r0, #128
+        SWI     OS_WriteC
+
+20
         TEQ     r9, #'w'            ; wrap text
         BEQ     vdu_window_wrap
         TEQ     r9, #'s'            ; scroll down
         BEQ     vdu_window_scroll
         TEQ     r9, #'u'            ; scroll up
         BEQ     vdu_window_scroll_up
+        TEQ     r9, #'c'            ; clear
+        BEQ     vdu_window_clear
 
-        PrintLine "Use wg?(w|s|u)"
+        PrintLine "Use wg?(b[0-9]?)?(w|s|u|c)"
         Pull    "pc"
 
 vdu_window_graphics SIGNATURE
@@ -456,5 +540,118 @@ vdu_window_scroll_up SIGNATURE
         PrintLine "up"
 
         Pull    "pc"
+
+
+vdu_window_clear SIGNATURE
+
+        XBL     vdu_filltext, #6, #5
+
+; Now clear the screen
+        SWI     OS_WriteI + 12
+
+        Pull    "pc"
+
+
+vdu_filltext SIGNATURE
+        Push    "r4-r6, lr"
+        MOV     r6, r0
+        SUB     r7, r1, #1
+
+; fill with @
+        MOV     r4, #0              ; y pos
+10
+        MOV     r5, #0              ; x pos
+        TEQ     r4, r7              ; last line?
+        MOVEQ   r5, #1              ; skip a character so we don't scroll
+20
+        SWI     OS_WriteI + '@'
+        ADD     r5, r5, #1
+        TEQ     r5, r6
+        BNE     %BT20
+        ADD     r4, r4, #1
+        CMP     r4, r7
+        BLS     %BT10
+
+        Pull    "r4-r6, pc"
+
+
+; d[1-7]r?p - define a character in the range [1-7] * 32, print
+; d[1-7]r?d - define a character in the range [1-7] * 32, read the definition
+; r, if used, prints then resets the definition.
+vdu_definechar SIGNATURE
+        Push    "r4-r6, lr"
+        LDRB    r0, [r1], #1
+        SUB     r0, r0, #'0'
+        CMP     r0, #7
+        MOVHS   r0, #7
+
+        MOV     r2, r0, LSL #5      ; character 32, 64, ... 192, 224
+
+        ; define the character as a box
+        SWI     OS_WriteI + 23
+        XSWI    OS_WriteC, r2
+        SWI     OS_WriteI + &FF
+        SWI     OS_WriteI + &81
+        SWI     OS_WriteI + &81
+        SWI     OS_WriteI + &81
+        SWI     OS_WriteI + &81
+        SWI     OS_WriteI + &81
+        SWI     OS_WriteI + &81
+        SWI     OS_WriteI + &FF
+
+        LDRB    r0, [r1], #1
+
+        TEQ     r0, #'r'
+        BNE     %FT20
+
+; reset the definition
+        XSWI    OS_WriteC, r2       ; plot first, then reset
+
+        Push    "r1"
+        MOV     r1, r2, LSR #5
+        XSWI    OS_Byte, OSByte_ResetSystemChars
+        Pull    "r1"
+        SWI     OS_NewLine
+
+        LDRB    r0, [r1], #1
+20
+        TEQ     r0, #'d'
+        BEQ     %FT50
+
+        XSWI    OS_WriteC, r2
+        B       %FT90
+
+50
+; 'd' - read the definition with OS_Word and print it out
+        SUB     sp, sp, #12
+
+        MOV     r1, sp
+        STRB    r2, [r1]
+        XSWI    OS_Word, 10             ; read character definition
+
+        MOV     r3, #1                  ; row we are plotting
+60
+        MOV     r4, #&80                ; bit we are printing
+        LDRB    r5, [r1, r3]
+70
+        TST     r5, r4
+        MOVEQ   r0, #'0'
+        MOVNE   r0, #'1'
+        SWI     OS_WriteC
+        MOVS    r4, r4, LSR #1
+        BNE     %BT70
+
+        SWI     OS_NewLine
+
+        ADD     r3, r3, #1
+        TEQ     r3, #9
+        BNE     %BT60
+
+        ADD     sp, sp, #12
+
+90
+
+        Pull    "r4-r6, pc"
+
 
         END
