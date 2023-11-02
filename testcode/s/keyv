@@ -18,14 +18,16 @@ KeyV_CapsLock * 93
 KeyV_P * 48
 KeyV_1 * 17
 KeyV_Tab * 38
+KeyV_F1 * 1
+KeyV_CursorUp * 89
 
 
 insert_keyv      ROUT
         Push    "lr"
-        MOV     r10, r1
+        MOV     r8, r1
 10
         ADR     lr, %BT10
-        LDRB    r0, [r10], #1
+        LDRB    r0, [r8], #1
         TEQ     r0, #'s'
         BEQ     press_lshift
         TEQ     r0, #'c'
@@ -38,6 +40,10 @@ insert_keyv      ROUT
         BEQ     release_p
         TEQ     r0, #'t'
         BEQ     press_tab
+        TEQ     r0, #'f'
+        BEQ     press_f1
+        TEQ     r0, #'u'
+        BEQ     press_cursorup
         TEQ     r0, #'1'
         BEQ     press_1
         TEQ     r0, #'d'
@@ -48,6 +54,8 @@ insert_keyv      ROUT
         BEQ     inkey_delay_medium
         CMP     r0, #'r'
         BEQ     readc
+        CMP     r0, #'z'
+        BEQ     set_state
         CMP     r0, #'-'
         CMPNE   r0, #'+'
         BEQ     enable_disable_keyboard
@@ -60,12 +68,15 @@ insert_keyv      ROUT
         PrintLine "  p = press p"
         PrintLine "  1 = press 1"
         PrintLine "  t = press tab"
+        PrintLine "  f = press f1"
+        PrintLine "  u = press cursor up"
         PrintLine "  d = INKEY(4)  [short]"
         PrintLine "  m = INKEY(12) [medium]"
         PrintLine "  l = INKEY(35) [long]"
         PrintLine "  r = GET"
         PrintLine "  - = disable KeyV input"
         PrintLine "  + = enable KeyV input"
+        PrintLine "  zc<state> = Set cursors state with *FX 4"
 99
         Pull    "pc"
 
@@ -112,6 +123,12 @@ press_1 SIGNATURE
         B       press
 press_tab SIGNATURE
         MOV     r0, #KeyV_Tab
+        B       press
+press_f1 SIGNATURE
+        MOV     r0, #KeyV_F1
+        B       press
+press_cursorup SIGNATURE
+        MOV     r0, #KeyV_CursorUp
         B       press
 press_lshift SIGNATURE
         MOV     r0, #KeyV_LShift
@@ -176,5 +193,28 @@ inkey_delay SIGNATURE
         SWI     OS_NewLine
         Pull    "pc"
 
+
+set_state SIGNATURE
+        Push    "lr"
+        LDRB    r0, [r8], #1
+        TEQ     r0, #'c'
+        BNE     %FT99
+
+        BL      get_number
+
+        PrintMessage "*FX 4, "
+        PrintInteger r0
+        SWI     OS_NewLine
+
+        MOV     r1, r0
+        XSWI    OS_Byte, #4
+        B       %FT99
+
+90
+        PrintLine "ERROR: Argument to 'set state' not recognised"
+99
+        Pull    "pc"
+
+        GET     s._args_common
 
         END

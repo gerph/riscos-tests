@@ -1,0 +1,155 @@
+; Common functions for processing the command line arguments
+;
+; All these functions assume that the command line arguments have been passed in R8, and that
+; R8 will be updated on return. Other than the returned parameters, the only corrupted register
+; is R14.
+;
+; Functions available:
+;
+;   Function            Purpose                 Returns
+;   --------            -------                 -------
+;   get_string          reads a ,-termed string R0 = pointer to the string, 0 terminated
+;   get_spaced_string   reads a spaced string   R0 = pointer to the string, 0 terminated
+;   get_number          reads a decimal number  R0 = number read, or 0 if not recognised
+;   get_hex             reads a hex number      R0 = number read, or 0 if not recognised
+;   get_dimensions      reads a decimal pair    R0 = first number
+;                       separated by 'x'        R1 = second number (or the first if not present)
+;
+; Expects to use the hdr.macros.
+;
+; A common pattern might be:
+;
+; my_program ROUT
+;         Push    "lr"
+;         MOV     r8, r1
+; 10
+;         ADR     lr, %BT10
+;         LDRB    r0, [r8], #1
+;
+;         TEQ     r0, #'c'
+;         BEQ     program_option_c
+;
+;         CMP     r0, #32
+;         BLO     %FT90
+;
+; 80
+;         PrintLine "Syntax: program c"
+;
+; 90
+;         Pull    "pc"
+;
+;
+; program_option_c SIGNATURE
+;         Push    "lr"
+;         BL      get_number
+;
+;         PrintMessage "Got number "
+;         PrintInteger r0
+;         SWI     OS_NewLine
+;
+;         Pull    "pc"
+
+
+
+; => r8-> the string, terminated by a ','
+; <= r8-> updated pointer
+;    r0 = pointer to the string
+get_string SIGNATURE
+        Push    "lr"
+
+        MOV     r0, r8
+10
+        LDRB    lr, [r8], #1
+        CMP     lr, #','
+        MOVEQ   lr, #0
+        STREQB  lr, [r8, #-1]
+        BEQ     %FT90
+
+        CMP     lr, #32
+        SUBLO   r8, r8, #1
+        BHS     %BT10
+
+90
+        Pull    "pc"
+
+
+; => r8-> the string, terminated by a ' '
+; <= r8-> updated pointer
+;    r0 = pointer to the string
+get_spaced_string SIGNATURE
+        Push    "lr"
+
+        MOV     r0, r8
+10
+        LDRB    lr, [r8], #1
+        CMP     lr, #' '
+        MOVEQ   lr, #0
+        STREQB  lr, [r8, #-1]
+        BEQ     %FT90
+
+        CMP     lr, #32
+        SUBLO   r8, r8, #1
+        BHS     %BT10
+
+90
+        Pull    "pc"
+
+
+; => r8-> the string, terminated by a ',' or end of string
+; <= r8-> next character
+;    r0 = number converted from decimal, or 0 if not understood
+get_number SIGNATURE
+        Push    "r1-r2, lr"
+
+        MOV     r0, #10
+10
+        XSWI    XOS_ReadUnsigned,, r8
+        MOVVS   r0, #0
+        BVS     %FT90
+        LDRB    r14, [r1], #1
+        CMP     r14, #32
+        SUBLT   r1, r1, #1
+        MOVLT   r14, #','
+        TEQ     r14, #','
+        MOVEQ   r8, r1
+        MOVEQ   r0, r2
+        MOVNE   r0, #0
+90
+        Pull    "r1-r2, pc"
+
+
+; => r8-> the string, terminated by a ','
+; <= r8-> next character
+;    r0 = number converted from hex
+get_hex SIGNATURE
+        Push    "r1-r2, lr"
+        MOV     r0, #16
+        B       %BT10
+
+
+get_dimensions SIGNATURE
+        Push    "r0-r2, lr"
+; => r8-> the string in form '<width>[x<height>]', terminated by a ','
+; <= r8-> next character
+;    r0 = width
+;    r1 = height (same as width if no 'x' given)
+
+        XSWI    OS_ReadUnsigned, 10
+        MOVVS   r2, #-1             ; use -1 if invalid
+        STR     r2, [sp, #0]        ; width (return in r0)
+        STRVS   r2, [sp, #4]        ; if error, also in r1
+        BVS     %FT90
+        LDRB    r0, [r1]
+        TEQ     r0, #'x'
+        STRNE   r2, [sp, #4]        ; height (return in r1)
+        BNE     %FT10
+        ADD     r1, r1, #1
+        XSWI    OS_ReadUnsigned, 10
+        STR     r2, [sp, #4]        ; height (return in r1)
+10
+
+        MOV     r8, r1
+90
+        Push    "r0-r2, lr"
+
+        END
