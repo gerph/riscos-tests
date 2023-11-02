@@ -222,15 +222,15 @@
 #           * The 'for' statements do not include the 'my' which is expected on later
 #             perl version, as it is implicit in the earlier versions.
 #           * mkdir must always be called with an octal mode.
-if ($^O ne '' && $^O ne 'riscos')
-{
-    BEGIN {
-        eval "use warnings;";
-        eval "use strict;";
-    }
 
-    BEGIN {
-        eval "use Time::HiRes qw(time);";
+BEGIN {
+    if ($^O ne '' && $^O ne 'riscos')
+    {
+        require warnings;;
+        require strict;
+        require Time::HiRes;
+
+        Time::HiRes->import("time");
     }
 }
 
