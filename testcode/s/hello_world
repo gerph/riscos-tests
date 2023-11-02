@@ -21,8 +21,8 @@ message
         = 0
 end
 
-return_wrong
         ALIGN
+return_wrong
         DCD     1
         = "R0 on return from OS_Write0 was not correctly set to the terminator", 0
 
