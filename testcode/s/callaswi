@@ -2,6 +2,7 @@
         AREA    |Test$$Code|, CODE
 
         GET     hdr.swis
+        GET     hdr.macros
 
 
 callaswi  ROUT
@@ -16,6 +17,38 @@ callaswi  ROUT
         ADR     r0, callaswi_write0_x
         MOV     r10, #OS_Write0
         SWI     XOS_CallASWI
+        SWI     OS_NewLine
+
+; and that the X-variant in the passed parameter
+        ADR     r0, callaswi_generate_error_parameter
+        MOV     r10, #OS_GenerateError
+        ORR     r10, r10, #&20000
+        SWI     OS_CallASWI
+
+        Push    "r0"
+        ADRVC   r0, msg_failed
+        ADRVS   r0, msg_ok
+        SWI     OS_Write0
+        Pull    "r0"
+        SWI     OS_WriteI + ' '
+        ADD     r0, r0, #4
+        SWI     OS_Write0
+
+        SWI     OS_NewLine
+
+; and that the X-variant in the SWI call
+        ADR     r0, callaswi_generate_error
+        MOV     r10, #OS_GenerateError
+        SWI     XOS_CallASWI
+
+        Push    "r0"
+        ADRVC   r0, msg_failed
+        ADRVS   r0, msg_ok
+        SWI     OS_Write0
+        Pull    "r0"
+        SWI     OS_WriteI + ' '
+        ADD     r0, r0, #4
+        SWI     OS_Write0
 
         SWI     OS_NewLine
 
@@ -25,5 +58,18 @@ callaswi_write0_x
         = "X"
 callaswi_write0
         = "OS_CallASWI OS_Write0", 0
+
+        ALIGN
+callaswi_generate_error_parameter
+        DCD     0
+        = "OS_CallASWI XOS_GenerateError", 0
+
+        ALIGN
+callaswi_generate_error
+        DCD     0
+        = "XOS_CallASWI OS_GenerateError", 0
+
+msg_ok = "(ok)", 0
+msg_failed = "(FAILED)", 0
 
         END
