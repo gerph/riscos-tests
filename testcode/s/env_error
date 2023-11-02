@@ -1,0 +1,45 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+        GET     hdr.macros
+        GET     hdr.envnumbers
+
+
+env_error ROUT
+        Push    "lr"
+
+        PrintLine "Read default error handler"
+
+        XSWI    XOS_ReadDefaultHandler, #ErrorHandler
+
+        PrintMessage "Handler:", 16
+        PrintHex r1
+        SWI     OS_NewLine
+
+        PrintMessage "Workspace:", 16
+        PrintHex r2
+        SWI     OS_NewLine
+
+        PrintMessage "Buffer:", 16
+        PrintHex r3
+        SWI     OS_NewLine
+
+        ; update the buffer with the right details
+        STR     pc, [r3]
+        MOV     r0, #&9800
+        STR     r0, [r3, #4]
+        LDR     r0, err
+        STR     r0, [r3, #8]
+
+        MOV     r0, r2                         ; workspace is passed in R0
+        MOV     pc, r1                         ; jump to the handler
+
+        Pull    "pc"
+
+err
+        = "ERR", 0
+
+
+        END

@@ -1,0 +1,38 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+        GET     hdr.macros
+        GET     hdr.envnumbers
+
+
+env_bad ROUT
+        Push    "lr"
+
+        PrintLine "Read Default Handler (bad number)"
+
+        XSWI    XOS_ReadDefaultHandler, #MaxEnvNumber
+        BVC     %FT20
+        PrintError
+        SWI     OS_NewLine
+        B       %FT30
+
+20
+        PrintLine "ERROR: Did not return an error"
+30
+
+        PrintLine "Change Environment (bad number)"
+        XSWI    XOS_ChangeEnvironment, #MaxEnvNumber, 0, 0, 0
+        BVC     %FT20
+        PrintError
+        SWI     OS_NewLine
+        B       %FT30
+
+20
+        PrintLine "ERROR: Did not return an error"
+30
+
+        Pull    "pc"
+
+        END

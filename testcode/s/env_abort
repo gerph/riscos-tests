@@ -1,0 +1,111 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+        GET     hdr.macros
+        GET     hdr.envnumbers
+
+
+env_abort ROUT
+        Push    "lr"
+        STR     r12, my_r12
+
+        PrintLine "Read old abort handler"
+
+        XSWI    OS_ChangeEnvironment, #DataAbortHandler, 0, 0, 0
+        STR     r1, old_handler
+        STR     r2, old_handlerws
+        STR     r3, old_buffer
+
+        BL      print_handler
+
+        PrintLine "Set abort handler"
+        XSWI    OS_ChangeEnvironment, #DataAbortHandler, ^myhandler, #&77, #&88
+        BL      print_handler
+        TEQ     r2, #&77    ; ignored registers must be preserved
+        TEQEQ   r3, #&88    ; ignored registers must be preserved
+        BEQ     %FT20
+        PrintLine "ERROR: Ignored registers were not preserved!"
+        B       %FT90
+20
+        PrintLine "Read the current handler"
+
+        XSWI    OS_ChangeEnvironment, #DataAbortHandler, 0, 0, 0
+        BL      print_handler
+
+        ; Trigger an abort
+        MOV     r0, #-4
+        LDR     r0, [r0]
+
+        PrintLine "ERROR: Load from invalid memory didn't fail?!"
+90
+        Pull    "pc"
+
+
+myhandler SIGNATURE
+        ADRL    sp, small_stack
+        LDR     r12, my_r12
+
+; Report that it happened, then exit
+
+        PrintLine "Entered my abort handler"
+        MRS     r1, CPSR                    ; should be SVC mode at this point
+        PrintMessage "CPSR:", 12
+        PrintHex r1
+        SWI     OS_NewLine
+        SWI     OS_NewLine
+
+        PrintLine "Restoring original abort handler"
+
+        LDR     r1, old_handler
+        LDR     r2, old_handlerws
+        LDR     r3, old_buffer
+        XSWI    OS_ChangeEnvironment, #DataAbortHandler
+
+        BL      print_handler
+
+        PrintLine "OS_Exit should now exit our application"
+
+        SWI     OS_Exit
+        PrintLine "OS_Exit didn't exit. Aborting with a prefetch abort now."
+        MOV     r0, #&8800000
+        MOV     pc, r0                      ; hopefully memory that does not exist
+
+
+print_handler SIGNATURE
+        Push    "lr"
+        PrintMessage "Handler:", 12
+        PrintHex r1
+        SWI     OS_NewLine
+
+        PrintMessage "Workspace:", 12
+        PrintHex r2
+        SWI     OS_NewLine
+
+        PrintMessage "Buffer:", 12
+        PrintHex r3
+        SWI     OS_NewLine
+
+        SWI     OS_NewLine
+        Pull    "pc"
+
+
+
+
+
+; data
+old_handler
+        DCD     0
+old_handlerws
+        DCD     0
+old_buffer
+        DCD     0
+my_r12
+        DCD     0
+
+small_stack_base
+        %       256
+small_stack
+
+        END

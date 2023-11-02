@@ -1,0 +1,138 @@
+
+        AREA    |Test$$Code|, CODE
+
+        GET     hdr.swis
+        GET     hdr.printmacros
+        GET     hdr.macros
+        GET     hdr.envnumbers
+
+
+errorhandler
+        STR     r12, my_r12
+
+        PrintLine "Read old Error handler"
+
+        XSWI    OS_ChangeEnvironment, #ErrorHandler, 0, 0, 0
+        STR     r1, old_handler
+        STR     r2, old_handlerws
+        STR     r3, old_buffer
+
+        BL      print_handler
+
+        PrintLine "Set error handler"
+        XSWI    OS_ChangeEnvironment, #ErrorHandler, ^^myhandler, #&77, ^^mybuffer
+        BL      print_handler
+
+        PrintLine "Read the current handler"
+
+        XSWI    OS_ChangeEnvironment, #ErrorHandler, 0, 0, 0
+        BL      print_handler
+
+        PrintLine "Generating error"
+        XSWI    OS_GenerateError, ^my_error
+
+        PrintLine "ERROR: OS_GenerateError returned?!"
+90
+        Pull    "pc"
+
+my_error
+        DCD     &1234
+        = "My error message", 0
+        ALIGN
+
+
+myhandler SIGNATURE
+        ADRL    sp, small_stack
+        MOV     r0, r12
+        LDR     r12, my_r12
+        TEQ     r12, #0
+        BNE     %FT10
+; have been reentered
+        SWI     OS_WriteS
+        = "My error handler was reentered. Exiting now.",0
+        SWI     OS_NewLine
+        SWI     OS_Exit
+
+10
+        PrintLine "Entered my error handler"
+        MRS     r1, CPSR                    ; should be user mode at this point
+        PrintMessage "CPSR:", 12
+        PrintHex r1
+
+        SWI     OS_NewLine
+        PrintMessage "R12:", 12
+        PrintHex r0
+        SWI     OS_NewLine
+
+        PrintMessage "ErrNumber:", 12
+        LDR     r0, mybuffer_errnum
+        PrintHex r0
+        SWI     OS_NewLine
+        PrintMessage "Message:", 12
+        ADR     r0, mybuffer_message
+        PrintString r0
+        SWI     OS_NewLine
+        SWI     OS_NewLine
+
+        PrintLine "Restoring original error handler"
+
+        LDR     r1, old_handler
+        LDR     r2, old_handlerws
+        LDR     r3, old_buffer
+        XSWI    OS_ChangeEnvironment, #ErrorHandler
+
+        BL      print_handler
+
+        MOV     r0, #0
+        STR     r0, my_r12                  ; flag that we're now done with this error handler
+                                            ; if we're called again, we'll use OS_Exit to end.
+
+        PrintLine "OS_Exit should exit our application"
+
+        SWI     OS_Exit
+        PrintLine "OS_Exit didn't exit. Aborting now."
+        MOV     r0, #&8800000
+        LDR     r0, [r0]                    ; hopefully memory that does not exist
+
+
+print_handler SIGNATURE
+        Push    "lr"
+        PrintMessage "Handler:", 12
+        PrintHex r1
+        SWI     OS_NewLine
+
+        PrintMessage "Workspace:", 12
+        PrintHex r2
+        SWI     OS_NewLine
+
+        PrintMessage "Buffer:", 12
+        PrintHex r3
+        SWI     OS_NewLine
+
+        SWI     OS_NewLine
+        Pull    "pc"
+
+
+
+
+
+; data
+old_handler
+        DCD     0
+old_handlerws
+        DCD     0
+old_buffer
+        DCD     0
+my_r12
+        DCD     0
+
+small_stack_base
+        %       256
+small_stack
+
+mybuffer
+mybuffer_pc     DCD     0
+mybuffer_errnum DCD     0
+mybuffer_message % 252
+
+        END
