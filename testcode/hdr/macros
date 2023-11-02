@@ -6,6 +6,7 @@
 ;     register parameter can take the form:
 ;       r<0-15> - an explicit register (registers are assigned in ascending order)
 ;       ^<symbol> - pointer to a symbol (short ADR range)
+;       ^^<symbol> - pointer to a symbol (long ADR range)
 ;       $<string> - a string to use as a pointer
 ;       '<char>' - a character
 ;       #<value> - a value, using literal pool for the value
@@ -86,8 +87,13 @@ $label  MSR     CPSR_f, #(1<<28)
         MOV     $reg, $p
      |
       [ "$p" :LEFT: 1 = "^"
+       [ "$p" :LEFT: 2 = "^^"
+arg     SETS    "$p" :RIGHT: ((:LEN: "$p") - 2)
+        ADRL    $reg, $arg
+       |
 arg     SETS    "$p" :RIGHT: ((:LEN: "$p") - 1)
         ADR     $reg, $arg
+       ]
       |
        [ "$p" :LEFT: 1 = "'"
         MOV     $reg, #$p

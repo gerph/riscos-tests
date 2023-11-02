@@ -26,6 +26,12 @@ printbuffersize * 20
 
 ; -------------------------------------------------------------------------
         MACRO
+        PrintSigned    $regnum, $width
+        PrintNumber     $regnum, $width, OS_ConvertInteger4, signed
+        MEND
+
+; -------------------------------------------------------------------------
+        MACRO
         PrintHex        $regnum, $width
         SWI     OS_WriteI + '&'
     [ "$width" <> ""
@@ -66,18 +72,24 @@ printbuffersize * 20
 
 ; -------------------------------------------------------------------------
         MACRO
-        PrintNumber     $regnum, $width, $swinum
+        PrintNumber     $regnum, $width, $swinum, $signed
         STMFD   sp!, {r0-r2}
     [ "$regnum" <> "r0"
         MOV     r0, $regnum
     ]
         SetupPrintBuffer r1
         MOV     r2, #printbuffersize
+    [ "$signed" <> ""
+        CMP     r0, #0
+        SUBLT   r2, r2, #1
+        RSBLT   r0, r0, #0
+        SWILT   OS_WriteI + '-'
+    ]
         SWI     $swinum
         SWI     OS_Write0
     [ "$width" <> ""
-        RSB     r2, r2, #printbuffersize     ; number of characters writen
-        RSBS    r2, r2, #$width               ; number of character to write as padding
+        RSB     r2, r2, #printbuffersize     ; number of characters written
+        RSBS    r2, r2, #$width              ; number of character to write as padding
         BMI     %FT20
 10
         SWINE   OS_WriteI + ' '
@@ -155,6 +167,37 @@ printbuffersize * 20
         LDRB    r14, [r1], #1
         TEQ     r14, #13
         BNE     %BT10
+        ; r1-> the terminator
+        SUB     r1, r1, r0
+        SUB     r1, r1, #1                      ; don't print the terminator
+        SWI     OS_WriteN
+    [ "$width" <> ""
+    [ $width > 0
+        RSBS    r1, r1, #$width - 1
+40
+        SWIPL   OS_WriteI + ' '
+        SUBS    r1, r1, #1
+        BPL     %BT40
+    ]
+    ]
+        LDMFD   sp!, {r0-r1}
+        MEND
+
+; -------------------------------------------------------------------------
+        MACRO
+        PrintStringCtrl   $regnum, $width
+        STMFD   sp!, {r0-r1}
+    [ "$regnum" <> "r0"
+        MOV     r0, $regnum
+    ]
+        ; find the length we'll write
+    [ "$regnum" <> "r1"
+        MOV     r1, r0
+    ]
+10
+        LDRB    r14, [r1], #1
+        CMP     r14, #32
+        BHS     %BT10
         ; r1-> the terminator
         SUB     r1, r1, r0
         SUB     r1, r1, #1                      ; don't print the terminator
