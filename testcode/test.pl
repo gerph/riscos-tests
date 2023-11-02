@@ -801,7 +801,7 @@ sub native_filename
     # Now the replacements for the plain extension
     # FIXME: I think this should probably also be performed on the prefix
     #        in the above names.
-    elsif ($filename =~ /^(.*)\/($extensions_re)$/)
+    elsif ($filename =~ /^(.*)\/($extensions_re)$/ || $filename =~ /^[^\/]+$/)
     {
         # RISCOS extension layout
         if ($^O eq 'riscos')
