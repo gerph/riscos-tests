@@ -10,23 +10,40 @@ DANumber_RMA * 0x1
 
 ; R1-> module operation to perform
 rma_corrupt     ROUT
+        MOV     r8, r1
 
-        LDRB    r0, [r1], #1
+        LDRB    r0, [r8], #1
         TEQ     r0, #'h'
         BEQ     header
+        TEQ     r0, #'u'
+        BEQ     under
+        TEQ     r0, #'o'
+        BEQ     over
         TEQ     r0, #'0'
         TEQNE   r0, #'1'
         TEQNE   r0, #'2'
         TEQNE   r0, #'3'
         BEQ     start
-        PrintLine "Syntax: rma_corrupt h[4u-0]|[0-3][4u-0]"
+        PrintLine "Syntax: rma_corrupt [h0-9uo][4u-0]"
+        PrintLine "Options:"
+        PrintLine "         <where><how>"
+        PrintLine "<where>:"
+        PrintLine "         h - corrupt the block header size"
+        PrintLine "         0-3 - corrupt the heap header"
+        PrintLine "         u - under the header (in leading guard region, or before header)"
+        PrintLine "         o - over the block (in trailing guard region, or after block)"
+        PrintLine "<how>:"
+        PrintLine "         4 - add 4 to the value"
+        PrintLine "         u - make unaligned"
+        PrintLine "         - - make negative"
+        PrintLine "         0 - make 0"
         MOV     pc, lr
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 header SIGNATURE
         Push    "lr"
         PrintLine "Corrupt the claimed block's header"
-        LDRB    r5, [r1], #1
+        LDRB    r5, [r8], #1
         XSWI    OS_Module, #ModHandReason_Claim,,, #16
 
         PrintMessage "Address:", 15
@@ -42,6 +59,46 @@ header SIGNATURE
         Pull    "pc"
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+under SIGNATURE
+        Push    "lr"
+        PrintLine "Corrupt the before the claimed block's header"
+        LDRB    r5, [r8], #1
+        XSWI    OS_Module, #ModHandReason_Claim,,, #16
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        SUB     r1, r2, #8                  ; where to corrupt
+        BL      do_corruption
+
+        XSWI    OS_Module, #ModHandReason_Free
+        PrintLine "Freed"
+
+        Pull    "pc"
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+over SIGNATURE
+        Push    "lr"
+        PrintLine "Corrupt the after the claimed block's data"
+        LDRB    r5, [r8], #1
+        XSWI    OS_Module, #ModHandReason_Claim,,, #16
+
+        PrintMessage "Address:", 15
+        PrintHex r2
+        SWI     OS_NewLine
+
+        LDR     r0, [r2, #-4]               ; block size (including header)
+        SUB     r0, r0, #4                  ; excluding header
+        ADD     r1, r2, r0                  ; where to corrupt
+        BL      do_corruption
+
+        XSWI    OS_Module, #ModHandReason_Free
+        PrintLine "Freed"
+
+        Pull    "pc"
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 start SIGNATURE
         Push    "lr"
         PrintLine "Corrupt the start of the heap"
@@ -49,7 +106,7 @@ start SIGNATURE
         CMP     r6, #3
         BHI     %FT99
 
-        LDRB    r5, [r1], #1                ; how to corrupt
+        LDRB    r5, [r8], #1                ; how to corrupt
 
         ; Get the RMA location
         XSWI    OS_ReadDynamicArea, #128+DANumber_RMA
