@@ -790,7 +790,7 @@ sub native_filename
         $filename = "$2$dirsep$1";
     }
     elsif ($filename =~ /^($extensions_dir_re)\/(.*)$/)
-    { # RISCO OS layout, Unix syntax
+    { # RISC OS layout, Unix syntax
         $filename = "$1$dirsep$2";
     }
     elsif ($filename =~ /^($extensions_dir_re)\.(.*)$/)
@@ -803,7 +803,7 @@ sub native_filename
     #        in the above names.
     elsif ($filename =~ /^(.*)\/($extensions_re)$/ || $filename =~ /^[^\/]+$/)
     {
-        # RISCOS extension layout
+        # RISC OS extension layout
         if ($^O eq 'riscos')
         {
             # Nothing to do; we're already in the right format
