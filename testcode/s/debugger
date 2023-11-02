@@ -295,6 +295,18 @@ next2   LDR     r1, prev2
         STMDB   r0, {r3, r4, r14}
         DisassembleEnd
 
+        DisassembleStart "Load/Store multiple conditional"
+        LDMNEIA r0, {r1-r3}
+        LDMNEIB r0, {r2, r4, r5}
+        LDMNEDA r0, {r7, r9, r11}
+        LDMNEDB r0, {r3, r4, r14}
+
+        STMNEIA r0, {r1-r3}
+        STMNEIB r0, {r2, r4, r5}
+        STMNEDA r0, {r7, r9, r11}
+        STMNEDB r0, {r3, r4, r14}
+        DisassembleEnd
+
         DisassembleStart "Load/Store multiple (sp)"
         LDMIA   sp!, {r1-r3}
         LDMIB   sp!, {r2, r4, r5}
