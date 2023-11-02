@@ -8,6 +8,7 @@
 OSMemoryReason_ReadPhysicalTableSize * 6
 OSMemoryReason_ReadPhysicalTable * 7
 OSMemoryReason_Amounts * 8
+OSMemoryReason_IOSpace * 9
 
 OSMemoryReason_Amounts_DRAM * 0x100
 OSMemoryReason_Amounts_VRAM * 0x200
@@ -16,14 +17,22 @@ OSMemoryReason_Amounts_IOSpace * 0x400
 OSMemoryReason_Amounts_SoftROM * 0x500
 
 
+physical_table_size  * 1024 * 128               ; enough for 512 MiB?
+
+
 memoryinfo     ROUT
         LDRB    r0, [r1], #1
         TEQ     r0, #'a'
         BEQ     memory_amounts
         TEQ     r0, #'t'
         BEQ     memory_table
+        TEQ     r0, #'c'
+        BEQ     memory_controllers
 
-        PrintLine "Syntax: memoryinfo [at]"
+        PrintLine "Syntax: memoryinfo [atc]"
+        PrintLine "  a = memory amounts"
+        PrintLine "  t = memory table"
+        PrintLine "  c = memory controller info"
         SWI     XOS_Exit
 
 
@@ -73,11 +82,20 @@ memory_table SIGNATURE
         PrintInteger r2
         SWI     OS_NewLine
 
+; allocate space
+        Push    "r0, r1"
+        MOV     r0, #6
+        MOV     r3, #physical_table_size        ; we always allocate the same table so we get the same results
+        XSWI    OS_Module
+        Pull    "r0, r1"
+; r2-> the buffer now
+
         MOV     r3, r1
-        CMP     r3, #?physical_table
+        CMP     r3, #physical_table_size
         BHI     %FT90                           ; physical table is too big for us here
 
-        XSWI    OS_Memory, OSMemoryReason_ReadPhysicalTable, ^physical_table
+        MOV     r1, r2
+        XSWI    OS_Memory, OSMemoryReason_ReadPhysicalTable
 
         PrintLine "Table:"
 
@@ -143,8 +161,44 @@ table_chars
         =       '%'                             ; undefined (shifted versions of the others)
         =       '^'                             ; undefined
         =       '&'                             ; undefined
+        ALIGN
 
 
-physical_table  % 1024 * 128                    ; enough for 512 MiB?
+memory_controllers SIGNATURE
+        PrintLine "Controller logical bases:"
+
+        MOV     r7, #0
+10
+        PrintMessage "Controller "
+        PrintInteger r7, 3
+        PrintMessage ": "
+
+        MOV     r1, r7, LSL #8
+        XSWI    XOS_Memory, OSMemoryReason_IOSpace
+        BVC     %FT30
+
+        PrintError
+        B       %FT50
+
+30
+        TEQ     r1, #0
+        BNE     %FT40
+        PrintMessage "None"
+        B       %FT50
+
+40
+        PrintMessage "at "
+        PrintHex r1
+
+50
+        SWI     OS_NewLine
+
+        ADD     r7, r7, #1
+        TEQ     r7, #8
+        MOVEQ   r7, #32
+        TEQ     r7, #35
+        BNE     %BT10
+
+        MOV     pc, lr
 
         END
