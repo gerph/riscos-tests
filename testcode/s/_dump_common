@@ -5,18 +5,29 @@
 ; r1 = memory size
 ; r2 = width (1, 2, 4)
 dump_memory SIGNATURE
+        Push    "r3, lr"
+        MOV     r3, #0
+        BL      dump_memory_from_offset
+        Pull    "r3, pc"
+
+
+; Dump some memory in a table
+; r0 -> memory
+; r1 = end offset
+; r2 = width (1, 2, 4)
+; r3 = start offset
+dump_memory_from_offset SIGNATURE
         Push    "r0-r6, lr"
+        MOV     r6, r3              ; offset to start at
         MOV     r4, r0              ; start of memory to dump
         MOV     r5, r1              ; size to dump
         MOV     r3, r2              ; width of each entry
-25
-        MOV     r6, #0              ; offset being printed
 
 30
 cols_perrow * 16
         TST     r6, #cols_perrow - 1    ; first entry on a line?
         BNE     %FT35
-        PrintInteger r6, 4
+        PrintSigned r6, 4
         SWI     OS_WriteI + ':'
 35
         SWI     OS_WriteI + ' '
