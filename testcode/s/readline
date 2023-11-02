@@ -2,18 +2,62 @@
         AREA    |Test$$Code|, CODE
 
         GET     hdr.swis
+        GET     hdr.macros
+        GET     hdr.printmacros
 
 buffer_size * 16
 
 read_line      ROUT
+        Push    "lr"
+        MOV     r8, r1
+
+; default parameters
+        MOV     r1, #buffer_size
+        MOV     r2, #' '
+        MOV     r3, #256
+
+10
+        ADR     lr, %BT10
+        LDRB    r0, [r8], #1
+        TEQ     r0, #'b'
+        BEQ     set_buffer_size
+        CMP     r0, #32
+        BLO     %FT90
+
+80
+        PrintLine "Syntax: readline b[l0-9]"
+        PrintLine "Options:"
+        PrintLine "    b    - set buffer size; long, #-bytes"
+        B       %FT99
+
+90
+        BL      do_readline
+
+99
+        Pull    "pc"
+
+
+set_buffer_size SIGNATURE
+        Push    "lr"
+        LDRB    r0, [r8], #1
+        TEQ     r0, #'l'
+        MOVEQ   r1, #1<<28
+
+        SUB     r14, r0, #'0'
+        CMP     r14, #10
+        MOVLT   r1, r14
+
+        Pull    "pc"
+
+
+
+do_readline SIGNATURE
+
         SWI     OS_WriteS
         = "Input: ",0
         ALIGN
 
         ADR     r0, buffer
-        MOV     r1, #buffer_size
-        MOV     r2, #' '
-        MOV     r3, #256
         SWI     OS_ReadLine
 
         MOVCS   r4, #1              ; Escape pressed
