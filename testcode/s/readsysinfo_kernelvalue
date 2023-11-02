@@ -27,10 +27,17 @@ readsysinfo     ROUT
         PrintInteger r2, 2
         PrintMessage ": "
 
-        SWI     OS_ReadSysInfo
+        SWI     XOS_ReadSysInfo
+        BVC     %FT10
+        PrintMessage "Error ($name) : "
+        PrintError
+        SWI     OS_NewLine
+        B       %FT20
 
+10
         PrintHex r2
         PrintLine " ($name)"
+20
         MEND
 
 
@@ -47,8 +54,14 @@ readsysinfo     ROUT
         MOV     r0, #6
         ADR     r1, multivalues
         ADR     r2, outputs
-        SWI     OS_ReadSysInfo
+        SWI     XOS_ReadSysInfo
+        BVC     %FT10
+        PrintMessage "Error returned: "
+        PrintError
+        SWI     OS_NewLine
+        B       %FT20
 
+10
         LDR     r0, [r2], #4
         PrintMessage "RSI 6,0: "
         PrintHex r0
@@ -69,6 +82,7 @@ readsysinfo     ROUT
         PrintHex r0
         SWI     OS_NewLine
 
+20
         MOV     pc, lr
 
 multivalues
